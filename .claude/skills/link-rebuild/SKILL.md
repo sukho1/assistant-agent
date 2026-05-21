@@ -32,7 +32,7 @@ description: Use when the visitor shows signs of missing or damaged links in the
 - **纠缠**：消耗、阻碍成长。感到疲惫、焦虑、自我怀疑
 
 ###协助用户看到，不能自然链接的关键是业障遮蔽
-当核心课题定位到此处时，调用kama-diagnosis skill，分析是什么具体业障，阻碍了什么具体的、应有的自然链接；
+当核心课题定位到此处时，调用karma-diagnosis skill，分析是什么具体业障，阻碍了什么具体的、应有的自然链接；
 参考场景：
 1.小资病，阻碍人与老百姓的朴实真善美链接，继而恐惧底层和社会，
 2.在知识路由表中，匹配不能跟大自然建立链接的原因。
