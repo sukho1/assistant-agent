@@ -1,16 +1,13 @@
 ---
 name: deep-psychology
-description: Use when deeper understanding of the visitor's psychological dynamics is needed, when the five-complex model helps make sense of complex presentations, when simpler frameworks have been exhausted, when training/teaching the psychological model itself, or when comprehensive psychological analysis is needed. Covers the full five-complex framework: feeling, cognitive, awareness-containing, energy, and libido.
+description: Use when the four-dimension model has located the visitor's core concerns and a deeper, integrated analysis of their psychological-spiritual system is needed; when understanding how the five complexes interact matters; when simpler frameworks are insufficient. Covers the full five-complex framework: feeling, cognitive, awareness-containing, energy, and libido — each complex's dynamics and their mutual interaction.
 ---
 
 # 底层心理模型（五个综合体）
 
 ## 触发条件
 
-- 前几个模块已不足以解释用户的复杂状况
-- 需要理解用户多个心理维度之间的互动关系
-- 用户对心理学有深度兴趣，希望理解"人是怎么运作的"
-- 作为咨询师的自我训练——用五个综合体框架理解每一个人
+- 当四维度模型已定位用户核心课题，需要深入、综合地分析其心理心灵体系时；当需要理解五个综合体如何互动时；当前几个模块已不足以解释复杂状况时。涵盖完整的五个综合体框架：感受、认知、觉察-涵容、能量、力比多——每个综合体的各自动态及相互作用。
 
 ## 核心框架
 
@@ -40,13 +37,14 @@ description: Use when deeper understanding of the visitor's psychological dynami
 ### 综合体四：力比多综合体
 
 整体综合体：感受综合体-能量综合体-业障体系-小我体系-觉察涵容综合体，表现为一股（复杂的）精神动力、心力（浪潮），涨潮时向外投注、受挫时退潮。
+实我与力比多：日常思维意识（实我）是浅中层，力比多融合业障与本自具足两面。疗愈的根源在力比多，不在实我——"内在老大哥疗愈我"，而非"我管教内在小孩"。实我的角色是陪伴、不折腾；着力即差，一努力就说明实我在添乱。
 整体综合体互动的对象，就是命运。命运即天赋，天赋即命运。
 
 **力比多的几个典型方向：**
 
 **向外的创造**：投入到工作、创作、事业中。健康的向外力比多是自发的、不由外部压力驱动的。
 **攻击性向外。可能表现为对他人的愤怒、批判、对抗。不一定是坏的——对不公正的愤怒本身就是向外力比多的健康表达。
-**向内的自我攻击**：本该向外的攻击力转向自身。自我批评、羞耻感、自罪感的底层动力往往是力比多方向的转向
+**向内的自我攻击**：力比多向内自我攻击，就是内耗，耗费大量能量。
 **阻滞**：力比多既不能向外也不能向内，卡住了。表现为"什么都不想干""提不起劲""活着没意思"。
 
 **力比多方向的转换作为诊断线索：**
