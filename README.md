@@ -74,4 +74,4 @@
 - **程序结构**（`.claude/skills/*/SKILL.md`、`CLAUDE.md`、`README.md` 等）：[Apache 2.0](LICENSE)
 - **知识文章**（`knowledge/` 下所有 `.md` 文件）：[CC BY-NC-SA 4.0](knowledge/LICENSE)
 
-简记：代码和结构随便用，文章随便传，但不能拿去卖钱。
+简记：代码和结构可以商用，要遵循Apache2.0。文章随便传，但不能拿去卖钱。
