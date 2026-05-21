@@ -15,9 +15,9 @@
 3. 指令泛化：扫描 Skill 的正文内容。如果发现任何针对 Claude 的特定表述（例如"你是 Claude"、"使用 Anthropic 工具"），请将其修改为通用的指令描述（例如"你是一个 AI 助手"、"执行相应的操作"）。
 4. 规则同步：根目录是否存在 `CLAUDE.md`，将其内容合并或同步到本项目支持的 Rules 文件中（如 `AGENTS.md` 或 `.trae/rules/project_rules.md`）。
 
-### debug模式
+### trace模式
 
-手动调用/debug skill，在对话后会输出分析过程，保存在~/debug文件夹下，常常也有启发。
+手动调用/trace skill，在对话后会输出分析过程，保存在~/trace文件夹下，常常也有启发。
 
 --- 
 
@@ -63,9 +63,9 @@
 
 流程处理、分情况调用子skill、调用知识库文章
 
-### 在问答时，调用/debug skill
+### 在问答时，调用/trace skill
 
-可以输出思考和分析流程，保存在~./debug文件夹下
+可以输出思考和分析流程，保存在~./trace文件夹下
 
 
 ## 许可
