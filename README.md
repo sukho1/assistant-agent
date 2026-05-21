@@ -4,18 +4,24 @@
 
 ## 如何使用
 
-### claude用户进入项目文件夹即可，自动加载项目级的claude.md，并自动调用各skill
+### 下载即用
+- git clone https://github.com/sukho1/assistant-agent.git
+- 没有用过Agent的朋友，可以下载试用国产免费的trae，把这句发给自己的Agent，让它执行
+
+### claude用户进入项目文件夹即可对话
+
+- 自动加载项目级的claude.md，并自动调用各skill
 
 ### 非claude用户，请输入以下指令：
 
-本文件夹下面的项目是Claude 开发的Skill，现在迁移到你所在的平台
-
+```text
+本文件夹下的项目是Claude 开发的Skill，现在迁移到你所在的平台
 请执行：
-
 1. 路径迁移：扫描项目中的 `.claude/skills/` 目录。请将该目录下的所有 Skill 文件夹复制到本项目支持的 Skills 路径下（通常是 `.agents/skills/` 或 `.trae/skills/`）。如果目标路径不存在，请创建它。
 2. 元数据清洗：检查每个 Skill 目录下的 `SKILL.md` 文件头部的 YAML Frontmatter（如 `---` 包裹的部分）。请移除或替换任何 Claude 专属的配置项（例如 `hooks`, `agent`, `model`, `tools` 等），仅保留通用的 `name`, `description` 和 `version`。
 3. 指令泛化：扫描 Skill 的正文内容。如果发现任何针对 Claude 的特定表述（例如"你是 Claude"、"使用 Anthropic 工具"），请将其修改为通用的指令描述（例如"你是一个 AI 助手"、"执行相应的操作"）。
 4. 规则同步：根目录是否存在 `CLAUDE.md`，将其内容合并或同步到本项目支持的 Rules 文件中（如 `AGENTS.md` 或 `.trae/rules/project_rules.md`）。
+```
 
 ### trace模式
 
