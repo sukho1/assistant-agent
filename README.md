@@ -72,30 +72,6 @@
 
 - 开发对日记体系的支持，需要做RAG，向量检索等
 
-## 文件说明
-
-### 本项目的Claude.md是基础设定
-
-非claude客户端改成Agent.md，或者在Agent.md中引用该文件
-
-### ~/.claude/skills/counseling/skill.md是顶层咨询skill
-
-流程处理、分情况调用子skill、调用知识库文章
-
-### 在问答时，调用/trace skill
-
-可以输出思考和分析流程，保存在~./trace文件夹下
-
-
-## 许可
-
-本项目采用双许可，按文件类型划分：
-
-- **程序结构**（`.claude/skills/*/SKILL.md`、`CLAUDE.md`、`README.md` 等）：[Apache 2.0](LICENSE)
-- **知识文章**（`knowledge/` 下所有 `.md` 文件）：[CC BY-NC-SA 4.0](knowledge/LICENSE)
-
-简记：代码和结构可以商用，要遵循Apache2.0。文章随便传，但不能拿去卖钱。
-
 ---
 
 ## 目录结构
@@ -110,7 +86,7 @@ assistant-agent/
 ├── ma-zhuang/                          # Agent 核心
 │   ├── CLAUDE.md                      # Agent 人格设定
 │   ├── .claude/skills/                # Skill 定义
-│   │   ├── counseling/                # 顶层咨询路由
+│   │   ├── counseling/                # 顶层咨询路由、总路由 *** 流程处理、分情况调用子skill、调用知识库文章
 │   │   ├── alienation/                # 异化专题
 │   │   ├── deep-psychology/           # 深层心理分析
 │   │   ├── innate-wholeness/          # 本自具足
@@ -119,7 +95,7 @@ assistant-agent/
 │   │   ├── profile-update/            # 用户画像更新
 │   │   ├── response-check/            # 回复质检
 │   │   ├── self-healing/              # 自体疗愈
-│   │   └── trace/                     # 分析追溯
+│   │   └── trace/                     # 分析追溯 *** 输出思考和分析流程
 │   ├── knowledge/                     # 知识库文章
 │   │   ├── karma-series/              # 业障系列
 │   │   ├── link-series/               # 链接系列
@@ -134,6 +110,15 @@ assistant-agent/
 │   ├── docs/superpowers/specs/        # 设计文档
 │   ├── server/                        # 后端服务
 │   └── trace/                         # 分析输出
-├── diary/                             # 日记
-└── user_profile/                      # 用户画像
+├── diary/                             # 日记 *** 关键支撑
+└── user_profile/                 # 用户画像 *** 核心记忆
 ```
+
+### 许可
+
+本项目采用双许可，按文件类型划分：
+
+- **程序结构**（`.claude/skills/*/SKILL.md`、`CLAUDE.md`、`README.md` 等）：[Apache 2.0](LICENSE)
+- **知识文章**（`knowledge/` 下所有 `.md` 文件）：[CC BY-NC-SA 4.0](knowledge/LICENSE)
+
+简记：代码和结构可以商用，要遵循Apache2.0。文章随便传，但不能拿去卖钱。
