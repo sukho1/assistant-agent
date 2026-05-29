@@ -11,6 +11,7 @@ diary/
 user_profile/
 
 # Project specific
+project/
 server/
 
 # Editor files
