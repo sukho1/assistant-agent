@@ -62,6 +62,8 @@ description: Use when the visitor shows signs of missing or damaged links in the
 - 当用户因"网上都说""身边人都说"而焦虑时，注意区分——中国网民（9亿）不等同于中国人民（13亿），评论区（1亿）更不代表沉默大多数。小资声量最大，无产阶级才是真正的大多数。
 
 ## 渐进加载规则
+- **启动时加载链接维档案，以了解用户历史情况**：读取 `user_profile/four-dimensions/dim2-links/overview.md`。同时读取 `user_profile/four-dimensions/dim2-links/quarterly/YYYY-QX.md`（当前季度）。文件不存在则跳过。
+- **按需加载更细粒度档案**：分析中需要更细轨迹时，按需加载月文件（`monthly/YYYY-MM.md`）→ 周文件（`weekly/YYYY-WXX.md`），从近到远。每级文件不存在则跳过。
 - **每次本skill被调用时，必须根据核心课题从知识路由表中选择至少1篇文章加载。**
 - 加载≠灌给用户——agent内化后自然回应
 - 每次只读一篇，充分用尽后再考虑下一篇

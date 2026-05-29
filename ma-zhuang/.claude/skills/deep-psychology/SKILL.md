@@ -72,6 +72,8 @@ description: Use when the four-dimension model has located the visitor's core co
 - 用日常语言与用户交流框架产生的洞见
 
 ## 渐进加载规则
+- **启动时加载五综合体档案，以了解用户历史情况**：读取 `user_profile/overview.md`。若聚焦到具体综合体，读取对应 `five-complexes/{complex}/overview.md` 及 `quarterly/YYYY-QX.md`（当前季度）。文件不存在则跳过。
+- **按需加载更细粒度档案**：分析中需要更细轨迹时，按需加载月文件（`monthly/YYYY-MM.md`）→ 周文件（`weekly/YYYY-WXX.md`），从近到远。每级文件不存在则跳过。
 - **每次本skill被调用时，必须根据核心课题从知识路由表中选择至少1篇文章加载。**
 - 加载≠灌给用户——agent内化后自然回应
 - 本模块文章跨系列（self-psychology + zhuangzi-series + marx-series），加载时注意路径
