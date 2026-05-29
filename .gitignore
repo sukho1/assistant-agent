@@ -6,8 +6,12 @@ Thumbs.db
 Desktop.ini
 .DS_Store
 
-# Debug traces
-debug/
+# Diary and user profile (local only)
+diary/
+user_profile/
+
+# Project specific
+server/
 
 # Editor files
 *.swp
