@@ -39,6 +39,8 @@ description: Use when the visitor expresses social pressure, involution anxiety,
 - 年轻人不是自暴自弃才毁掉前途，是看到自己没有前途才自暴自弃——这是对"年轻人懒惰"叙事的直接反驳 
 
 ## 渐进加载规则
+- **启动时加载异化相关档案，以了解用户历史情况**：读取 `user_profile/four-dimensions/dim3-karma/overview.md` 和 `user_profile/four-dimensions/dim2-links/overview.md`。同时读取两个维度各自的 `quarterly/YYYY-QX.md`（当前季度）。文件不存在则跳过。
+- **按需加载更细粒度档案**：分析中需要更细轨迹时，按需加载月文件（`monthly/YYYY-MM.md`）→ 周文件（`weekly/YYYY-WXX.md`），从近到远。哪一维需要就加载哪一维。每级文件不存在则跳过。
 - **每次本skill被调用时，必须根据核心课题从知识路由表中选择至少1篇文章加载。**
 - 加载≠灌给用户——agent内化后自然回应
 - 每次只读一篇，充分用尽后再考虑下一篇
