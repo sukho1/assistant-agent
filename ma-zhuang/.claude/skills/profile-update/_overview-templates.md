@@ -25,7 +25,7 @@ last_update: YYYY-MM-DD
 ## 用户事实
 
 ### 当前快照
-{维度事实字段，每条标注 YYYY-MM-DD}
+{维度事实字段，每条标注 YYYY-MM-DD，字母编号 a. b. c. ...}
 
 ---
 ## Agent 分析
