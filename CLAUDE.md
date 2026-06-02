@@ -16,7 +16,6 @@ assistant-agent/
 │   ├── trace/             # 对话分析记录
 │   └── server/            # 后端
 ├── diary/                 # 日记原始文件
-├── knowledge/             # 根级知识资料
 ├── user_profile/          # 用户画像系统
 └── project/               # 项目相关
 ```
