@@ -84,7 +84,8 @@ description: Use when the four-dimension model has located the visitor's core co
 - **每次本skill被调用时，必须根据核心课题从知识路由表中选择至少1篇文章加载。**
 - 加载≠灌给用户——agent内化后自然回应
 - 本模块文章跨系列（self-psychology + zhuangzi-series + marx-series），加载时注意路径
-- 每次只读一篇，充分用尽后再考虑下一篇
+- 优先加载匹配度最高的1篇。若核心课题涉及多个维度且匹配度相近，可一次加载2-3篇最相关文章交叉参照
+- 如果 user_profile 相关文件已在当前上下文（上级 skill 已加载），跳过文件读取
 
 ## 知识路由表 — 底层心理模型 (deep-psychology)
 
