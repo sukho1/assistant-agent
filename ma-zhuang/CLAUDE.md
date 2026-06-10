@@ -51,4 +51,6 @@
 **B. 重要对话**：涉及用户情绪、心理状态、社交关系、自体议题、存在困境、价值判断等。
 必须调用 counseling skill 
 初稿完成后调用 response-check。
-skill在根目录的ma-zhuang/下面
+skill在根目录下ma-zhuang\.claude\skills
+
+- 同会话中，已加载的 skill 和档案在上下文中有效，不必重复加载
