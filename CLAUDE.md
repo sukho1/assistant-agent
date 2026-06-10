@@ -1,4 +1,4 @@
-加载 ma-zhuang/CLAUDE.md
+每次都加载 ma-zhuang/CLAUDE.md
 
 ## 目录结构
 
