@@ -52,6 +52,6 @@
 - **是** → B 类，强制调用 counseling skill。
 - **拿不准** → 一律算 B 类。
 
-**B 类强制流程**：counseling → 初稿 → response-check → 输出。
+**B 类强制流程**：counseling → 初稿 → 输出前自检 → 输出。
 
 skill 在根目录下 ma-zhuang\.claude\skills。同会话中已加载的 skill 和档案在上下文中有效，不必重复加载。
