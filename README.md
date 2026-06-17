@@ -4,6 +4,10 @@
 
 ## 如何使用
 
+### 下载即用版（master 分支）
+
+原版，clone 即用，无需额外配置。以下安装说明均适用于 master 分支。
+
 ### 下载即用，需要本地agent软件
 - git clone https://github.com/sukho1/assistant-agent.git
 - 没有用过Agent的朋友，可以下载试用字节国产免费的trae，把这句发给自己的Agent，让它执行
@@ -27,6 +31,30 @@
 ### trace模式
 
 手动调用/trace skill，在对话后会输出分析过程，保存在~/trace文件夹下，常常也有启发。
+
+### DiaryRAG 版（assistant-agent-DiaryRAG 分支）
+
+此分支新增**日记语义检索 MCP 服务**。将你的日记（.docx）放入 `diary/` 目录后，Agent 可以语义搜索过往日记内容，用于对话中的回溯、分析、自我链接。
+
+与 master 不同，此分支需要预处理日记数据。以下指引可发给你的 Agent 执行：
+
+```text
+安装并配置 DiaryRAG 日记语义搜索：
+
+1. 安装 Python 依赖：
+   pip install -r diary_rag/requirements.txt
+
+2. 将日记文件（.docx 格式）放入项目根目录下的 diary/ 文件夹
+
+3. 运行预处理流水线：
+   python diary_rag/segment_l1.py && python diary_rag/segment_l2.py
+
+4. MCP 配置文件 .mcp.json 已就绪，Agent 启动后即可使用 search_diary 工具。
+   如需手动测试，运行：
+   python diary_rag/server.py
+```
+
+预处理后的数据在 `diary_rag/data/` 下（已在 .gitignore 中排除），不提交到仓库。每次日记有新增或修改，重新执行第 3 步即可。
 
 --- 
 
@@ -70,7 +98,7 @@
 
 ### 下一步
 
-- 开发对日记体系的支持，需要做RAG，向量检索等
+- DiaryRAG 日记语义搜索已上线（见 assistant-agent-DiaryRAG 分支），后续优化检索精度与性能
 
 ---
 
@@ -110,6 +138,11 @@ assistant-agent/
 │   ├── docs/superpowers/specs/        # 设计文档
 │   ├── server/                        # 后端服务
 │   └── trace/                         # 分析输出
+├── diary_rag/                          # 日记语义搜索 MCP ** DiaryRAG 分支
+│   ├── server.py                       # MCP 服务入口
+│   ├── segment_l1.py                   # 预处理 L1
+│   ├── segment_l2.py                   # 预处理 L2
+│   └── data/                           # 预处理数据（gitignore）
 ├── diary/                             # 日记 *** 关键支撑
 └── user_profile/                 # 用户画像 *** 核心记忆
 ```
