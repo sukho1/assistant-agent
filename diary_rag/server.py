@@ -15,7 +15,7 @@ def get_model() -> SentenceTransformer:
     global _model
     if _model is None:
         print("[diary-rag] Loading embedding model...", file=sys.stderr)
-        _model = SentenceTransformer(config.EMBED_MODEL_NAME, local_files_only=True)
+        _model = SentenceTransformer(config.EMBED_MODEL_NAME)
         _model.encode(["warm-up"], normalize_embeddings=True, show_progress_bar=False)
         print("[diary-rag] Model ready.", file=sys.stderr)
     return _model
