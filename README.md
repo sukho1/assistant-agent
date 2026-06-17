@@ -47,12 +47,14 @@
 2. 将日记文件（.docx 格式）放入项目根目录下的 diary/ 文件夹
 
 3. 运行预处理流水线：
-   python diary_rag/segment_l1.py && python diary_rag/segment_l2.py
+   python diary_rag/segment_l1.py && python diary_rag/segment_l2.py && python diary_rag/index.py
 
 4. MCP 配置文件 .mcp.json 已就绪，Agent 启动后即可使用 search_diary 工具。
    如需手动测试，运行：
    python diary_rag/server.py
 ```
+
+预处理流水线说明：`segment_l1.py` 切分日记为父块→`segment_l2.py` 再切为子块→`index.py` 用 BAAI/bge-small-zh-v1.5 模型向量化并写入 ChromaDB。首次运行 `index.py` 需联网下载嵌入模型（约 100MB），如遇下载失败可提前 `pip install sentence-transformers && python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('BAAI/bge-small-zh-v1.5')"` 手动缓存模型。
 
 预处理后的数据在 `diary_rag/data/` 下（已在 .gitignore 中排除），不提交到仓库。每次日记有新增或修改，重新执行第 3 步即可。
 

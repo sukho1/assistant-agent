@@ -54,7 +54,7 @@ def build_index(model: SentenceTransformer, chunks: List[dict], collection):
 
 if __name__ == '__main__':
     print(f"Loading model: {config.EMBED_MODEL_NAME}...")
-    model = SentenceTransformer(config.EMBED_MODEL_NAME, local_files_only=True)
+    model = SentenceTransformer(config.EMBED_MODEL_NAME)
 
     print("  Warming up...")
     model.encode(["预热"], normalize_embeddings=True, show_progress_bar=False)
