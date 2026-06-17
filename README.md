@@ -49,7 +49,10 @@
 3. 运行预处理流水线：
    python diary_rag/segment_l1.py && python diary_rag/segment_l2.py && python diary_rag/index.py
 
-4. MCP 配置文件 .mcp.json 已就绪，Agent 启动后即可使用 search_diary 工具。
+4. 验证处理完整性并测试 MCP 搜索：
+   python diary_rag/verify.py
+
+5. MCP 配置文件 .mcp.json 已就绪，Agent 启动后即可使用 search_diary 工具。
    如需手动测试，运行：
    python diary_rag/server.py
 ```
