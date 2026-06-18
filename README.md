@@ -1,6 +1,6 @@
 # 马克思+庄子+心理学对话Agent
 
-> v1.0.0
+> v2.0.0
 
 ## 如何使用
 
@@ -34,6 +34,10 @@
 
 ### DiaryRAG 版（assistant-agent-DiaryRAG 分支）
 
+```bash
+git clone -b assistant-agent-DiaryRAG https://github.com/sukho1/assistant-agent.git
+```
+
 此分支新增**日记语义检索 MCP 服务**。将你的日记（.docx）放入 `diary/` 目录后，Agent 可以语义搜索过往日记内容，用于对话中的回溯、分析、自我链接。
 
 与 master 不同，此分支需要预处理日记数据。以下指引可发给你的 Agent 执行：
@@ -44,7 +48,7 @@
 1. 安装 Python 依赖：
    pip install -r diary_rag/requirements.txt
 
-2. 将日记文件（.docx 格式）放入项目根目录下的 diary/ 文件夹
+2. 将日记文件（.docx 或其他格式）放入项目根目录下的 diary/ 文件夹
 
 3. 运行预处理流水线：
    python diary_rag/segment_l1.py && python diary_rag/segment_l2.py && python diary_rag/index.py

@@ -177,7 +177,7 @@ def heuristic_split(stream: ParagraphStream, signals: SignalReport) -> List[Pare
                 block_title = _clean_title(p.text)
                 current_week_date = block_date
                 confidence = 0.90
-            elif re.search(r'文章合集|总结|素描|酝酿', p.text):
+            elif re.match(r'^(文章合集|总结|素描|酝酿)$', p.text.strip()):
                 i += 1
                 continue
             else:
