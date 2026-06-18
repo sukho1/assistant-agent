@@ -17,6 +17,9 @@ project/
 server/
 spec/
 
+# Python
+__pycache__/
+
 # Editor files
 *.swp
 *.swo
