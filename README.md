@@ -60,10 +60,17 @@ git clone -b assistant-agent-DiaryRAG https://github.com/sukho1/assistant-agent.
    如需手动测试，运行：
    python diary_rag/server.py
 ```
+注：
 
-预处理流水线说明：`segment_l1.py` 切分日记为父块→`segment_l2.py` 再切为子块→`index.py` 用 BAAI/bge-small-zh-v1.5 模型向量化并写入 ChromaDB。首次运行 `index.py` 需联网下载嵌入模型（约 100MB），如遇下载失败可提前 `pip install sentence-transformers && python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('BAAI/bge-small-zh-v1.5')"` 手动缓存模型。
+### 预处理流水线说明：
+`segment_l1.py` 切分日记为父块（单日日记、单篇文章、单部分内容，100-2000字）→`segment_l2.py` 再切为子块（不大于300字）→`index.py` 用 BAAI/bge-small-zh-v1.5 模型向量化并写入 ChromaDB。首次运行 `index.py` 需联网下载嵌入模型（约 100MB），如遇下载失败可提前 `pip install sentence-transformers && python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('BAAI/bge-small-zh-v1.5')"` 手动缓存模型。
 
-预处理后的数据在 `diary_rag/data/` 下（已在 .gitignore 中排除），不提交到仓库。每次日记有新增或修改，重新执行第 3 步即可。
+### 预处理后的数据在 `diary_rag/data/` 下（已在 .gitignore 中排除），不提交到仓库。每次日记有新增或修改，重新执行第 3 步即可。
+
+### 如果自己的日记文件非docx格式，如.md文件夹
+让自己的agent根据上述切分逻辑+预处理源代码，自己写程序进行切分chunk、并验证处理完整性，然后做chunk的向量存储索引，MCP的设置、MCP功能测试，E2E测试。
+自己在咨询时可以用/trace调用trace skill，查看ma-zhuang/trace记录，是否有检索日记的部分。如果没有，让agent排查可能的原因。
+向量模型默认用的是bge-small-zh-v1.5，有技术能力、电脑性能强的朋友，让Agent更换为BGE-M3等更强的模型。
 
 --- 
 

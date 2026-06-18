@@ -3,6 +3,20 @@ name: "counseling"
 description: "Use when the visitor begins a conversation, when comprehensive understanding of their situation is needed, or when determining which specific framework or sub-skill to route to. Covers the four-dimensional topic positioning model, underlying psychological model, routing to sub-skills, and core conversation principles."
 ---
 
+> **知识库路径**: `ma-zhuang/knowledge/`（相对于项目根目录）
+>
+> 知识路由表中的文章需从对应系列子目录加载。系列子目录：
+> - `zhuangzi-series/` — 庄子系列
+> - `link-series/` — 链接系列
+> - `karma-series/` — 业障系列
+> - `marx-series/` — 马主义系列
+> - `self-psychology/` — 自体心理学系列
+>
+> 加载文章时使用相对于项目根目录的完整路径，如 `ma-zhuang/knowledge/zhuangzi-series/论活在当下.md`。
+> 文章中找不到时，用 Glob 在 `ma-zhuang/knowledge/` 下搜索文件名。
+> 档案文件（user_profile/）位于项目根目录，不在知识库中。
+
+
 # 心灵咨询综合理解
 
 ## 核心处理流程
@@ -47,9 +61,23 @@ description: "Use when the visitor begins a conversation, when comprehensive und
 
 注意：多数用户只发一段话，不默认对方会继续回复。可用引导式对话，但不依赖它。
 
+### 日记检索工具说明
+
+`search_diary` 是 MCP 工具 `mcp__diary-rag__search_diary` 的简记名称，由 `.mcp.json` 中配置的 `diary-rag` MCP 服务器提供。
+
+- **实现文件**：`diary_rag/server.py`（FastMCP stdio transport）
+- **参数**：`query`（自然语言或关键词字符串）、`top_k`（返回父块数量，默认 5）
+- **返回**：`[{id, date, title, type, char_count, content}, ...]`，按语义相似度降序，会话内自动去重
+
+若 MCP 服务器未启动导致工具列表中无 `mcp__diary-rag__search_diary`，Bash 回退：
+
+```bash
+HF_HUB_OFFLINE=1 python -c "import sys; sys.path.insert(0,'diary_rag'); from server import search_diary; import json; r=search_diary('QUERY', top_k=3); print(json.dumps(r, ensure_ascii=False))"
+```
+
 ### 日记检索（第一轮）
 
-四维扫描和五综合体分析完成后，调用 `search` 工具检索相关日记记录作为内部上下文。
+四维扫描和五综合体分析完成后，调用 MCP 工具 `mcp__diary-rag__search_diary` 检索相关日记记录作为内部上下文。
 
 - **关键词路**：从分析中提取核心关键词（人名/课题/模式），10-20字，调用 `search_diary(query="关键词", top_k=3)`
 - **概述路**：将当前对话的核心矛盾、主要课题概括为一句自然语言，30-40字，调用 `search_diary(query="概述", top_k=3)`
