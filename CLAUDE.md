@@ -52,4 +52,4 @@
 - **否**（纯信息交流：IT 技术、日常技巧、事实查询、简单问候等）→ B 类，直接回复，不需调 skill。
 - **拿不准** → 一律算 A 类。
 
-skill 在根目录下 ma-zhuang\.claude\skills。同会话中已加载的 skill 和档案在上下文中有效，不必重复加载。
+skill 在项目根 `.claude/skills/` 下。知识库在 `ma-zhuang/knowledge/` 下。同会话中已加载的 skill 和档案在上下文中有效，不必重复加载。

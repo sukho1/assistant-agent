@@ -3,6 +3,20 @@ name: "profile-update"
 description: "End-of-session profile update after important counseling conversations, when the user requests it, or integration of historical material (year-end summaries, monthly sketches, retrospective analyses) into the profile system. Updates user_profile overview, dimension, and period files. Invoke whenever new diagnostic information, key events, or historical data needs to be written into the profile archive."
 ---
 
+> **知识库路径**: `ma-zhuang/knowledge/`（相对于项目根目录）
+>
+> 知识路由表中的文章需从对应系列子目录加载。系列子目录：
+> - `zhuangzi-series/` — 庄子系列
+> - `link-series/` — 链接系列
+> - `karma-series/` — 业障系列
+> - `marx-series/` — 马主义系列
+> - `self-psychology/` — 自体心理学系列
+>
+> 加载文章时使用相对于项目根目录的完整路径，如 `ma-zhuang/knowledge/zhuangzi-series/论活在当下.md`。
+> 文章中找不到时，用 Glob 在 `ma-zhuang/knowledge/` 下搜索文件名。
+> 档案文件（user_profile/）位于项目根目录，不在知识库中。
+
+
 # 用户档案更新
 
 ## 触发条件

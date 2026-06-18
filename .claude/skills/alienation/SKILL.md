@@ -3,6 +3,20 @@ name: alienation
 description: Use when the visitor expresses social pressure, involution anxiety, class anxiety, feeling alienated by the system, "rat race" exhaustion, petty-bourgeois identity crisis, atomization and isolation, or worldview collapse. Covers Marx's theory of alienation, petty-bourgeois disease, atomization, and worldview rebuilding through class consciousness and materialist perspective.
 ---
 
+> **知识库路径**: `ma-zhuang/knowledge/`（相对于项目根目录）
+>
+> 知识路由表中的文章需从对应系列子目录加载。系列子目录：
+> - `zhuangzi-series/` — 庄子系列
+> - `link-series/` — 链接系列
+> - `karma-series/` — 业障系列
+> - `marx-series/` — 马主义系列
+> - `self-psychology/` — 自体心理学系列
+>
+> 本 skill 主要使用 `marx-series/` 系列文章。加载文章时使用相对于项目根目录的完整路径，如 `ma-zhuang/knowledge/zhuangzi-series/论活在当下.md`。
+> 文章中找不到时，用 Glob 在 `ma-zhuang/knowledge/` 下搜索文件名。
+> 档案文件（user_profile/）位于项目根目录，不在知识库中。
+
+
 # 异化与社会
 
 ## 触发条件
@@ -36,6 +50,8 @@ description: Use when the visitor expresses social pressure, involution anxiety,
 ### 协助用户切换到无产阶级、普通劳动者的视角分析
 
 ### 日记检索（第二轮）
+
+> **工具**：`mcp__diary-rag__search_diary(query, top_k)`
 
 异化分析完成后，结合分析结论进行第二次检索。
 

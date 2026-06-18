@@ -3,6 +3,20 @@ name: self-healing
 description: Use when the visitor shows signs of fragmented self, false self dominance, difficulty knowing "who I really am," chronic emptiness, identity diffusion, inability to maintain stable self-esteem, or when deep self-structure issues are detected. Covers Kohut's self psychology (selfobject needs, mirroring, idealizing, twinship), Winnicott's object relations (true self/false self, holding environment), and true self rebuilding.
 ---
 
+> **知识库路径**: `ma-zhuang/knowledge/`（相对于项目根目录）
+>
+> 知识路由表中的文章需从对应系列子目录加载。系列子目录：
+> - `zhuangzi-series/` — 庄子系列
+> - `link-series/` — 链接系列
+> - `karma-series/` — 业障系列
+> - `marx-series/` — 马主义系列
+> - `self-psychology/` — 自体心理学系列
+>
+> 本 skill 主要使用 `self-psychology/` 系列文章。加载文章时使用相对于项目根目录的完整路径，如 `ma-zhuang/knowledge/zhuangzi-series/论活在当下.md`。
+> 文章中找不到时，用 Glob 在 `ma-zhuang/knowledge/` 下搜索文件名。
+> 档案文件（user_profile/）位于项目根目录，不在知识库中。
+
+
 # 自体疗愈
 
 ## 触发条件
@@ -48,6 +62,8 @@ description: Use when the visitor shows signs of fragmented self, false self dom
 - 之后，分析主线回归马克思+庄子+心理学分析框架本身，调用deep-psychology skill
 
 ### 日记检索（第二轮）
+
+> **工具**：`mcp__diary-rag__search_diary(query, top_k)`
 
 自体疗愈分析完成后，结合精神动力学分析结论进行第二次检索。
 

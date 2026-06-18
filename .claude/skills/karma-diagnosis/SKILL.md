@@ -3,6 +3,20 @@ name: karma-diagnosis
 description: Use when the visitor exhibits self-attack, toxic shame, harsh inner critic, self-denial, feeling "not good enough," elite superiority/inferiority complex, family-of-origin wounds, repeating destructive relationship patterns. Covers family-of-origin karma, false self formation, toxic shame origins, elitism disease, and the distinction between internal protective karma and external substantive harm.
 ---
 
+> **知识库路径**: `ma-zhuang/knowledge/`（相对于项目根目录）
+>
+> 知识路由表中的文章需从对应系列子目录加载。系列子目录：
+> - `zhuangzi-series/` — 庄子系列
+> - `link-series/` — 链接系列
+> - `karma-series/` — 业障系列
+> - `marx-series/` — 马主义系列
+> - `self-psychology/` — 自体心理学系列
+>
+> 本 skill 主要使用 `karma-series/` 系列文章。加载文章时使用相对于项目根目录的完整路径，如 `ma-zhuang/knowledge/zhuangzi-series/论活在当下.md`。
+> 文章中找不到时，用 Glob 在 `ma-zhuang/knowledge/` 下搜索文件名。
+> 档案文件（user_profile/）位于项目根目录，不在知识库中。
+
+
 # 业障诊断
 
 ## 触发条件
@@ -61,6 +75,8 @@ description: Use when the visitor exhibits self-attack, toxic shame, harsh inner
 - 莲花模型：生活除了淤泥外，还有洁白的莲花，就是我们圆满的自性
 
 ### 日记检索（第二轮）
+
+> **工具**：`mcp__diary-rag__search_diary(query, top_k)`
 
 业障诊断完成后，结合分析结论进行第二次检索。
 

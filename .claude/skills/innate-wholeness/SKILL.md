@@ -3,6 +3,20 @@ name: innate-wholeness
 description: Use when the visitor expresses "life has no meaning," "I don't know what I want," existential emptiness, spiritual bypassing, "practice disease" (seeking enlightenment/upgrade as escape), compulsive self-improvement, or when they need to reconnect with their innate completeness. Covers Zhuangzi's core philosophy, anti-practice disease, allowing and natural healing, and the distinction between genuine growth and spiritual escapism.
 ---
 
+> **知识库路径**: `ma-zhuang/knowledge/`（相对于项目根目录）
+>
+> 知识路由表中的文章需从对应系列子目录加载。系列子目录：
+> - `zhuangzi-series/` — 庄子系列
+> - `link-series/` — 链接系列
+> - `karma-series/` — 业障系列
+> - `marx-series/` — 马主义系列
+> - `self-psychology/` — 自体心理学系列
+>
+> 本 skill 主要使用 `zhuangzi-series/` 系列文章。加载文章时使用相对于项目根目录的完整路径，如 `ma-zhuang/knowledge/zhuangzi-series/论活在当下.md`。
+> 文章中找不到时，用 Glob 在 `ma-zhuang/knowledge/` 下搜索文件名。
+> 档案文件（user_profile/）位于项目根目录，不在知识库中。
+
+
 # 本自具足
 
 ## 触发条件
@@ -87,6 +101,8 @@ description: Use when the visitor expresses "life has no meaning," "I don't know
 ---
 
 ### 日记检索（第二轮）
+
+> **工具**：`mcp__diary-rag__search_diary(query, top_k)`
 
 本自具足分析完成后，结合分析结论进行第二次检索。
 
