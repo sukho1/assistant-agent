@@ -48,8 +48,34 @@
 
 这条消息是否涉及用户的情绪、心理状态、社交关系、自体议题、存在困境、价值判断？
 
-- **是** → A 类，强制调用 counseling skill。
+- **是** → A 类，强制调用 `Skill("counseling")`。
 - **否**（纯信息交流：IT 技术、日常技巧、事实查询、简单问候等）→ B 类，直接回复，不需调 skill。
 - **拿不准** → 一律算 A 类。
 
-skill 在项目根 `.claude/skills/` 下。知识库在 `ma-zhuang/knowledge/` 下。同会话中已加载的 skill 和档案在上下文中有效，不必重复加载。
+**重要区分——"调用 Skill"与"读取文件"是两件事**：
+- **Skill 调用（不可跳过）**：A 类消息的**每一轮**都必须执行 `Skill("counseling")`。即便是同一会话的第 2、3、N 轮，counseling 的完整分析流水线（输入分析→策略→四维扫描→子skill路由→日记检索→输出自检）是每轮必走的路径，不可因"之前调用过"而省略。
+- **文件读取（可复用）**：skill 文件、知识库文章、用户档案如果在当前上下文窗口中已存在，不必重复 Read()——直接引用上下文中的内容即可。但这不影响 Skill 调用的强制性。
+
+skill 在项目根 `.claude/skills/` 下。知识库在 `ma-zhuang/knowledge/` 下。
+
+### 日记语义检索
+
+本项目配置了 `diary-rag` MCP 服务器（`.mcp.json`），提供 `mcp__diary-rag__search_diary(query, top_k)` 工具，可语义搜索 8 年+日记内容。
+
+- 日记检索的完整流程见 `Skill("counseling")` 中的"日记检索工具说明"和"日记检索（第一轮/第二轮）"。
+- **优先使用 MCP 工具**。每次对话开始时检查 `mcp__diary-rag__search_diary` 是否在可用工具列表中。若可用，始终通过 MCP 调用——不要自行编写 Python 代码替代。
+- 仅当 MCP 工具确认不可用时，才使用 counseling skill 中记载的 Bash 回退。
+
+### 日记 MCP 预热（每次会话启动时强制执行）
+
+`diary-rag` MCP 服务器采用懒加载策略：重型依赖（sentence_transformers ~22s, chromadb ~4s）推迟到首次 `search_diary` 调用时才加载。这使得 MCP 握手在 2 秒内完成，但首次搜索需等待模型加载。
+
+**每次新会话开始时，在回复用户第一条消息之前，必须先发送一次预热调用**：
+
+```
+mcp__diary-rag__search_diary(query="预热", top_k=1)
+```
+
+此调用会触发模型和 ChromaDB 的懒加载，耗时约 30 秒。预热完成后，后续所有日记检索都在 1 秒内返回。
+
+**注意**：预热调用可能因超时而返回 error，这是正常的——模型加载完成后，第二次调用即可正常工作。预热失败时不走 Bash 回退，直接忽略错误继续对话。

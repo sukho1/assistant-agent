@@ -63,13 +63,16 @@ description: "Use when the visitor begins a conversation, when comprehensive und
 
 ### 日记检索工具说明
 
-`search_diary` 是 MCP 工具 `mcp__diary-rag__search_diary` 的简记名称，由 `.mcp.json` 中配置的 `diary-rag` MCP 服务器提供。
+**主路径（始终优先）**：MCP 工具 `mcp__diary-rag__search_diary(query, top_k)`
 
-- **实现文件**：`diary_rag/server.py`（FastMCP stdio transport）
+此工具由 `.mcp.json` 中配置的 `diary-rag` MCP 服务器提供（实现：`diary_rag/server.py`，FastMCP stdio transport）。正常情况下此工具始终在可用工具列表中，直接调用即可。
+
 - **参数**：`query`（自然语言或关键词字符串）、`top_k`（返回父块数量，默认 5）
 - **返回**：`[{id, date, title, type, char_count, content}, ...]`，按语义相似度降序，会话内自动去重
 
-若 MCP 服务器未启动导致工具列表中无 `mcp__diary-rag__search_diary`，Bash 回退：
+**回退路径（仅限 MCP 工具确实不可用时）**：
+
+若检查确认 `mcp__diary-rag__search_diary` 不在当前可用工具列表中，使用以下 Bash 回退。注意：回退仅作为最后手段——每轮日记检索前都应先确认 MCP 工具是否已恢复，不要因为上一轮用了回退就跳过本轮检查：
 
 ```bash
 HF_HUB_OFFLINE=1 python -c "import sys; sys.path.insert(0,'diary_rag'); from server import search_diary; import json; r=search_diary('QUERY', top_k=3); print(json.dumps(r, ensure_ascii=False))"
@@ -79,8 +82,8 @@ HF_HUB_OFFLINE=1 python -c "import sys; sys.path.insert(0,'diary_rag'); from ser
 
 四维扫描和五综合体分析完成后，调用 MCP 工具 `mcp__diary-rag__search_diary` 检索相关日记记录作为内部上下文。
 
-- **关键词路**：从分析中提取核心关键词（人名/课题/模式），10-20字，调用 `search_diary(query="关键词", top_k=3)`
-- **概述路**：将当前对话的核心矛盾、主要课题概括为一句自然语言，30-40字，调用 `search_diary(query="概述", top_k=3)`
+- **关键词路**：从分析中提取核心关键词（人名/课题/模式），10-20字，调用 `mcp__diary-rag__search_diary(query="关键词", top_k=3)`
+- **概述路**：将当前对话的核心矛盾、主要课题概括为一句自然语言，30-40字，调用 `mcp__diary-rag__search_diary(query="概述", top_k=3)`
 - **合并去重**：两路结果合并（最多6条候选），按 `parent_id` 去重，保留 4-5 条。日记原文作为内部上下文注入后续子 skill 的 LLM 提示，不展示给用户（除非用户要求参考来源）。
 
 ## 两个核心模型（内部扫描工具）
