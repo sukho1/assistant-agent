@@ -8,12 +8,17 @@ Desktop.ini
 
 # Diary and user profile (local only)
 diary/
+diary_rag/data
+diary_rag/diary_articles
 user_profile/
 
 # Project specific
 project/
 server/
 spec/
+
+# Python
+__pycache__/
 
 # Editor files
 *.swp

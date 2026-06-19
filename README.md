@@ -1,8 +1,12 @@
 # 马克思+庄子+心理学对话Agent
 
-> v1.0.0
+> v2.0.0
 
 ## 如何使用
+
+### 下载即用版（master 分支）
+
+原版，clone 即用，无需额外配置。以下安装说明均适用于 master 分支。
 
 ### 下载即用，需要本地agent软件
 - git clone https://github.com/sukho1/assistant-agent.git
@@ -70,7 +74,7 @@
 
 ### 下一步
 
-- 开发对日记体系的支持，需要做RAG，向量检索等
+- DiaryRAG 日记语义搜索已上线（见 assistant-agent-DiaryRAG 分支），后续优化检索精度与性能
 
 ---
 
@@ -82,36 +86,27 @@ assistant-agent/
 ├── README.md                          # 本文件
 ├── .gitignore
 ├── .claude/
-│   └── settings.local.json
-├── ma-zhuang/                          # Agent 核心
-│   ├── CLAUDE.md                      # Agent 人格设定
-│   ├── .claude/skills/                # Skill 定义
-│   │   ├── counseling/                # 顶层咨询路由、总路由 *** 流程处理、分情况调用子skill、调用知识库文章
-│   │   ├── alienation/                # 异化专题
-│   │   ├── deep-psychology/           # 深层心理分析
-│   │   ├── innate-wholeness/          # 本自具足
-│   │   ├── karma-diagnosis/           # 业障诊断
-│   │   ├── link-rebuild/              # 链接重建
-│   │   ├── profile-update/            # 用户画像更新
-│   │   ├── response-check/            # 回复质检
-│   │   ├── self-healing/              # 自体疗愈
-│   │   └── trace/                     # 分析追溯 *** 输出思考和分析流程
+│   ├── settings.local.json
+│   └── skills/                             # Skill 定义 *** 核心
+│       ├── counseling/                     # 顶层咨询路由、总路由
+│       ├── alienation/                     # 异化专题
+│       ├── deep-psychology/                # 深层心理分析
+│       ├── innate-wholeness/               # 本自具足
+│       ├── karma-diagnosis/                # 业障诊断
+│       ├── link-rebuild/                   # 链接重建
+│       ├── profile-update/                 # 用户画像更新
+│       ├── self-healing/                   # 自体疗愈
+│       └── trace/                          # 分析追溯
+├── ma-zhuang/                          # 核心资产
 │   ├── knowledge/                     # 知识库文章
 │   │   ├── karma-series/              # 业障系列
 │   │   ├── link-series/               # 链接系列
 │   │   ├── marx-series/               # 马克思系列
 │   │   ├── self-psychology/           # 自体心理学
 │   │   └── zhuangzi-series/           # 庄子系列
-│   ├── user_profile/                  # 用户画像模板
-│   │   ├── overview.md
-│   │   ├── last-update.md
-│   │   ├── five-complexes/            # 五综合体
-│   │   └── four-dimensions/           # 四维度
-│   ├── docs/superpowers/specs/        # 设计文档
-│   ├── server/                        # 后端服务
 │   └── trace/                         # 分析输出
 ├── diary/                             # 日记 *** 关键支撑
-└── user_profile/                 # 用户画像 *** 核心记忆
+└── user_profile/                      # 用户画像 *** 核心记忆
 ```
 
 ### 许可
