@@ -1,10 +1,10 @@
 """MCP Server for diary RAG search. Stdio transport, singleton model."""
+from __future__ import annotations
+
 import os
 import sqlite3
 import sys
 import threading
-import chromadb
-from sentence_transformers import SentenceTransformer
 from mcp.server.fastmcp import FastMCP
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -20,21 +20,23 @@ _model_lock = threading.Lock()
 _model_ready = threading.Event()
 
 
-def _load_model() -> SentenceTransformer:
-    """Actually load and warm-up the embedding model (may take 10-18s)."""
-    print("[diary-rag] Loading embedding model...", file=sys.stderr)
+def _load_model():
+    """Actually load and warm-up the embedding model (~4s on CPU)."""
+    from sentence_transformers import SentenceTransformer  # lazy import, ~22s on first load
+
+    print("[diary-rag] Loading embedding model...", file=sys.stderr, flush=True)
     try:
         model = SentenceTransformer(config.EMBED_MODEL_NAME, local_files_only=True)
     except Exception:
-        print("[diary-rag] Model not cached, downloading...", file=sys.stderr)
+        print("[diary-rag] Model not cached, downloading...", file=sys.stderr, flush=True)
         model = SentenceTransformer(config.EMBED_MODEL_NAME)
     model.encode(["warm-up"], normalize_embeddings=True, show_progress_bar=False)
-    print("[diary-rag] Model ready.", file=sys.stderr)
+    print("[diary-rag] Model ready.", file=sys.stderr, flush=True)
     return model
 
 
-def get_model() -> SentenceTransformer:
-    """Return the model, blocking until background pre-warm finishes if needed."""
+def get_model():
+    """Return the model, loading it on first access if needed."""
     global _model
     if _model is None:
         with _model_lock:
@@ -42,12 +44,6 @@ def get_model() -> SentenceTransformer:
                 _model = _load_model()
     _model_ready.set()
     return _model
-
-
-def _prewarm_background() -> None:
-    """Load model in a background thread so first search_diary call is fast."""
-    print("[diary-rag] Background pre-warm started...", file=sys.stderr)
-    get_model()
 
 
 # ── Session state ──
@@ -69,6 +65,8 @@ def search_diary(query: str, top_k: int = 5) -> list:
     Returns:
         List of parent blocks with date, title, type, and full content.
     """
+    import chromadb  # lazy import, ~4s on first load
+
     model = get_model()
 
     # 1. Encode query
@@ -130,10 +128,11 @@ def search_diary(query: str, top_k: int = 5) -> list:
 
 
 if __name__ == '__main__':
-    print("[diary-rag] MCP server starting...", file=sys.stderr)
-    print(f"[diary-rag] ChromaDB: {config.CHROMA_DIR}", file=sys.stderr)
-    print(f"[diary-rag] SQLite: {config.DB_PATH}", file=sys.stderr)
-    # Start background model pre-warm — server answers MCP handshake immediately,
-    # and the model loads in parallel so first search_diary() is fast.
-    threading.Thread(target=_prewarm_background, daemon=True).start()
+    print("[diary-rag] MCP server starting...", file=sys.stderr, flush=True)
+    print(f"[diary-rag] ChromaDB: {config.CHROMA_DIR}", file=sys.stderr, flush=True)
+    print(f"[diary-rag] SQLite: {config.DB_PATH}", file=sys.stderr, flush=True)
+    # Lazy-load: heavy imports (sentence_transformers ~22s, chromadb ~4s) are
+    # deferred to first search_diary() call so the MCP handshake completes in
+    # under 2s.  CLAUDE.md instructs Claude to send a warm-up query immediately
+    # after session start so the model is ready before any real conversation.
     mcp.run(transport="stdio")

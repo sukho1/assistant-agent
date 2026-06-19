@@ -2,7 +2,8 @@
   "mcpServers": {
     "diary-rag": {
       "command": "python",
-      "args": ["diary_rag/server.py"]
+      "args": ["diary_rag/server.py"],
+      "timeout": 10000
     }
   }
 }
