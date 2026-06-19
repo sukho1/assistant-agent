@@ -12,13 +12,13 @@ class TestServerSearch:
 
     def test_server_module_imports(self):
         """server module imports without error."""
-        from server import mcp, search, get_model
+        from server import mcp, search_diary, get_model
         assert mcp is not None
-        assert callable(search)
+        assert callable(search_diary)
 
     def test_search_with_data(self):
         """search returns parent blocks for a matching query."""
-        from server import search
+        from server import search_diary, _model, _chroma_client, _chroma_collection, _prewarm_done
         import config
         import chromadb
         from sentence_transformers import SentenceTransformer
@@ -71,14 +71,21 @@ class TestServerSearch:
                 metadatas=[{"parent_id": "2026-01-05_diary_0", "sub_title": "", "char_count": len(text)}]
             )
 
+            # Initialize server globals so search_diary() doesn't block on warming_up
+            import server
+            server._model = model
+            server._chroma_client = client
+            server._chroma_collection = collection
+            server._prewarm_done.set()
+
             # Test search
-            results = search("天气很好", top_k=1)
+            results = search_diary("天气很好", top_k=1)
             assert len(results) > 0, f"Expected results, got empty list"
             assert results[0]["title"] == "测试日记"
             assert "天气很好" in results[0]["content"]
 
             # Test session dedup: second call should return empty (already returned)
-            results2 = search("天气很好", top_k=1)
+            results2 = search_diary("天气很好", top_k=1)
             assert len(results2) == 0, f"Expected empty (session dedup), got {len(results2)}"
 
         finally:

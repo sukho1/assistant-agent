@@ -14,10 +14,15 @@ import config
 # Falls back to online if model isn't cached yet.
 os.environ.setdefault("HF_HUB_OFFLINE", "1")
 
-# ── Singleton model ──
+# ── Singleton model + ChromaDB ──
 _model = None
 _model_lock = threading.Lock()
-_model_ready = threading.Event()
+
+_chroma_client = None
+_chroma_collection = None
+_chroma_lock = threading.Lock()
+
+_prewarm_done = threading.Event()
 
 
 def _load_model():
@@ -36,13 +41,15 @@ def _load_model():
 
 
 def get_model():
-    """Return the model, loading it on first access if needed."""
+    """Return the model, loading it on first access if needed.
+
+    Does NOT set _prewarm_done — that's the background thread's job,
+    because "done" means both model + ChromaDB are hot."""
     global _model
     if _model is None:
         with _model_lock:
             if _model is None:
                 _model = _load_model()
-    _model_ready.set()
     return _model
 
 
@@ -65,9 +72,25 @@ def search_diary(query: str, top_k: int = 5) -> list:
     Returns:
         List of parent blocks with date, title, type, and full content.
     """
-    import chromadb  # lazy import, ~4s on first load
+    # If background pre-warm hasn't completed AND model hasn't even loaded yet,
+    # wait briefly (5s cap) for the background thread.  This absorbs most
+    # mid-load calls without forcing a client retry.  If prewarm still isn't
+    # done after 5s, return warming_up — the client retries a few seconds later.
+    #
+    # If the model IS loaded (even if _prewarm_done isn't set — e.g. bg thread
+    # is still loading ChromaDB), proceed: the inline fallback below handles
+    # ChromaDB init safely (import + init outside _chroma_lock, no deadlock).
+    if not _prewarm_done.is_set() and _model is None:
+        # Wait briefly for the background thread. Caps at 5s to stay well
+        # within the MCP timeout.  If prewarm finishes while we wait, proceed
+        # immediately — no retry needed.
+        if _prewarm_done.wait(timeout=5.0):
+            pass  # prewarm completed — fall through to normal search
+        else:
+            return [{"status": "warming_up",
+                     "message": "模型仍在加载中，请稍后重试（首次加载约需 20-30 秒）"}]
 
-    model = get_model()
+    model = get_model()  # returns immediately when _prewarm_done is set
 
     # 1. Encode query
     query_vec = model.encode(
@@ -76,9 +99,29 @@ def search_diary(query: str, top_k: int = 5) -> list:
         show_progress_bar=False
     )
 
-    # 2. ChromaDB search with oversampling
-    client = chromadb.PersistentClient(path=config.CHROMA_DIR)
-    collection = client.get_collection(config.COLLECTION_NAME)
+    # 2. ChromaDB search — client/collection pre-loaded by background thread
+    #    Slow import + init MUST happen outside _chroma_lock to avoid deadlock
+    #    with the background thread (Python import lock vs _chroma_lock).
+    global _chroma_client, _chroma_collection
+
+    needs_init = False
+    with _chroma_lock:
+        if _chroma_client is None:
+            needs_init = True
+
+    if needs_init:
+        import chromadb  # outside lock — safe (matches background thread pattern)
+        new_client = chromadb.PersistentClient(path=config.CHROMA_DIR)
+        new_collection = new_client.get_collection(config.COLLECTION_NAME)
+        with _chroma_lock:
+            # Double-check: bg thread might have finished while we were importing
+            if _chroma_client is None:
+                _chroma_client = new_client
+                _chroma_collection = new_collection
+
+    with _chroma_lock:
+        client = _chroma_client
+        collection = _chroma_collection
 
     fetch_k = top_k * config.OVERSAMPLE_FACTOR
     results = collection.query(
@@ -127,12 +170,63 @@ def search_diary(query: str, top_k: int = 5) -> list:
     ]
 
 
+def _prewarm_background() -> None:
+    """Eager-load embedding model + ChromaDB in background thread.
+
+    Starts the moment the MCP server process launches — before the first
+    user message, before the first tool call.  The MCP handshake returns
+    fast (sub-2s) while this thread does the heavy lifting.
+
+    IMPORTANT: slow imports (chromadb) happen OUTSIDE the lock, so
+    search_diary() doesn't block if it races with this thread.  Only
+    the final pointer assignments go under _chroma_lock."""
+    global _chroma_client, _chroma_collection
+
+    import time
+    t_start = time.time()
+
+    print("[diary-rag] Background pre-warm started (model + ChromaDB)...",
+          file=sys.stderr, flush=True)
+
+    # 1. Embedding model (~14s import + ~4s load on first run)
+    get_model()
+    t_model = time.time()
+    print(f"[diary-rag] Model loaded ({t_model - t_start:.0f}s).",
+          file=sys.stderr, flush=True)
+
+    # 2. ChromaDB — slow import happens OUTSIDE the lock so search_diary()
+    #    never blocks waiting for this thread.  Only the final pointer
+    #    assignment is guarded.
+    try:
+        import chromadb  # noqa: F811
+        print("[diary-rag] Loading ChromaDB...", file=sys.stderr, flush=True)
+        client = chromadb.PersistentClient(path=config.CHROMA_DIR)
+        collection = client.get_collection(config.COLLECTION_NAME)
+        # Quick pointer assignment under lock — microseconds, not seconds
+        with _chroma_lock:
+            _chroma_client = client
+            _chroma_collection = collection
+        t_chroma = time.time()
+        print(f"[diary-rag] ChromaDB ready ({t_chroma - t_model:.0f}s).",
+              file=sys.stderr, flush=True)
+    except Exception:
+        print("[diary-rag] ChromaDB pre-load failed, will retry on first query.",
+              file=sys.stderr, flush=True)
+
+    _prewarm_done.set()
+    print(f"[diary-rag] Pre-warm complete — all deps hot ({time.time() - t_start:.0f}s total).",
+          file=sys.stderr, flush=True)
+
+
 if __name__ == '__main__':
     print("[diary-rag] MCP server starting...", file=sys.stderr, flush=True)
     print(f"[diary-rag] ChromaDB: {config.CHROMA_DIR}", file=sys.stderr, flush=True)
     print(f"[diary-rag] SQLite: {config.DB_PATH}", file=sys.stderr, flush=True)
-    # Lazy-load: heavy imports (sentence_transformers ~22s, chromadb ~4s) are
-    # deferred to first search_diary() call so the MCP handshake completes in
-    # under 2s.  CLAUDE.md instructs Claude to send a warm-up query immediately
-    # after session start so the model is ready before any real conversation.
+    # Pre-warm the embedding model in a background thread:
+    #   - MCP handshake completes in ~2s (no heavy imports during handshake)
+    #   - sentence_transformers (~22s) + chromadb (~4s) load in parallel
+    #   - When the warm-up search_diary call arrives, get_model() blocks until
+    #     the background thread finishes loading (at most ~22s from start)
+    #   - MCP timeout (60s) covers worst case where warm-up call hits immediately
+    threading.Thread(target=_prewarm_background, daemon=True).start()
     mcp.run(transport="stdio")
