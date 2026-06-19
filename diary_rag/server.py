@@ -5,14 +5,19 @@ import os
 import sqlite3
 import sys
 import threading
+import time
 from mcp.server.fastmcp import FastMCP
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import config
 
-# Keep network requests offline so HuggingFace doesn't phone home on cache hits.
-# Falls back to online if model isn't cached yet.
+# Keep network requests offline — model is pre-cached, no download fallback.
 os.environ.setdefault("HF_HUB_OFFLINE", "1")
+# Disable tqdm in stdio MCP context — tqdm detects the asyncio event loop
+# from mcp.run() and switches to tqdm_asyncio, which crashes with
+# "ValueError: I/O operation on closed file" because stdout is owned by the
+# MCP transport, not a real terminal.
+os.environ.setdefault("TQDM_DISABLE", "1")
 
 # ── Singleton model + ChromaDB ──
 _model = None
@@ -23,19 +28,33 @@ _chroma_collection = None
 _chroma_lock = threading.Lock()
 
 _prewarm_done = threading.Event()
+_warmup_stage = "init"  # "model" | "chromadb" | "done"
+_warmup_started_at: float | None = None
+
+
+WARMUP_TIMEOUT_S = 60  # if pre-warm exceeds this, search_diary reports error
 
 
 def _load_model():
-    """Actually load and warm-up the embedding model (~4s on CPU)."""
-    from sentence_transformers import SentenceTransformer  # lazy import, ~22s on first load
+    """Load the embedding model from local cache (~15s import + ~0.3s weights).
 
-    print("[diary-rag] Loading embedding model...", file=sys.stderr, flush=True)
+    P0a: Model must be pre-cached (BAAI/bge-small-zh-v1.5).  No network
+    fallback — downloading would hang indefinitely on slow Chinese networks
+    and the client has no way to distinguish "downloading" from "loading".
+    If the model isn't cached, fail fast with a clear error so the operator
+    can pre-download it once.
+    """
+    import traceback
+    from sentence_transformers import SentenceTransformer  # lazy import, ~15s on first load
+
+    print("[diary-rag] Loading embedding model from cache...", file=sys.stderr, flush=True)
     try:
         model = SentenceTransformer(config.EMBED_MODEL_NAME, local_files_only=True)
-    except Exception:
-        print("[diary-rag] Model not cached, downloading...", file=sys.stderr, flush=True)
-        model = SentenceTransformer(config.EMBED_MODEL_NAME)
-    model.encode(["warm-up"], normalize_embeddings=True, show_progress_bar=False)
+        model.encode(["warm-up"], normalize_embeddings=True, show_progress_bar=False)
+    except Exception as e:
+        print(f"[diary-rag] Model load FAILED: {e}", file=sys.stderr, flush=True)
+        traceback.print_exc(file=sys.stderr)
+        raise
     print("[diary-rag] Model ready.", file=sys.stderr, flush=True)
     return model
 
@@ -72,23 +91,53 @@ def search_diary(query: str, top_k: int = 5) -> list:
     Returns:
         List of parent blocks with date, title, type, and full content.
     """
-    # If background pre-warm hasn't completed AND model hasn't even loaded yet,
-    # wait briefly (5s cap) for the background thread.  This absorbs most
-    # mid-load calls without forcing a client retry.  If prewarm still isn't
-    # done after 5s, return warming_up — the client retries a few seconds later.
+    # Pre-warm runs in background thread.  If it hasn't finished, return
+    # warming_up status immediately (no blocking) so the client can see
+    # stage + elapsed time and decide how long to wait before retrying.
     #
-    # If the model IS loaded (even if _prewarm_done isn't set — e.g. bg thread
-    # is still loading ChromaDB), proceed: the inline fallback below handles
-    # ChromaDB init safely (import + init outside _chroma_lock, no deadlock).
-    if not _prewarm_done.is_set() and _model is None:
-        # Wait briefly for the background thread. Caps at 5s to stay well
-        # within the MCP timeout.  If prewarm finishes while we wait, proceed
-        # immediately — no retry needed.
-        if _prewarm_done.wait(timeout=5.0):
-            pass  # prewarm completed — fall through to normal search
+    # Two parallel tool calls both get a fast non-blocking response — no
+    # stdio queueing, no MCP timeout.
+    if not _prewarm_done.is_set():
+        elapsed = time.time() - _warmup_started_at if _warmup_started_at else 0
+
+        # P1: timeout — pre-warm stuck > 60s is abnormal (model import ~15s,
+        # ChromaDB ~4s, total ~20s).  Report error so the client stops retrying.
+        if elapsed > WARMUP_TIMEOUT_S:
+            return [{"status": "error",
+                     "stage": _warmup_stage,
+                     "elapsed_s": round(elapsed, 1),
+                     "message": f"预热超时（{_warmup_stage}阶段卡了{elapsed:.0f}秒，预期<20s）。"
+                                f"可能原因：模型缓存损坏、ChromaDB数据损坏、或系统资源不足。"
+                                f"诊断：1) python -c \"from sentence_transformers import SentenceTransformer; SentenceTransformer('{config.EMBED_MODEL_NAME}', local_files_only=True)\" 测试模型加载 "
+                                f"2) 检查HuggingFace缓存 ~/.cache/huggingface/hub/models--BAAI--bge-small-zh-v1.5/ 下的文件完整性 "
+                                f"3) 查看MCP进程stderr输出的traceback定位具体原因"}]
+
+        # P0b: dynamic eta_s based on stage + elapsed instead of hardcoded 26.
+        # Model stage: import ~15s + load ~0.3s ≈ 20s total from start.
+        # ChromaDB stage: ~4s on top, so total ~24s from start.
+        if _warmup_stage == "model":
+            # model not even loaded yet — at least 20s total
+            if elapsed < 20:
+                eta_s = max(20 - elapsed, 3)
+            else:
+                eta_s = min(elapsed - 20 + 5, 15)
+        elif _warmup_stage == "chromadb":
+            # model done, chromadb ~4s more
+            if elapsed < 24:
+                eta_s = max(24 - elapsed, 2)
+            else:
+                eta_s = min(elapsed - 24 + 3, 10)
         else:
-            return [{"status": "warming_up",
-                     "message": "模型仍在加载中，请稍后重试（首次加载约需 20-30 秒）"}]
+            if elapsed < 24:
+                eta_s = max(24 - elapsed, 3)
+            else:
+                eta_s = min(elapsed - 24 + 5, 12)
+
+        return [{"status": "warming_up",
+                 "stage": _warmup_stage,
+                 "elapsed_s": round(elapsed, 1),
+                 "eta_s": round(eta_s, 1),
+                 "message": f"后台预热中（{_warmup_stage}阶段，已过{elapsed:.0f}秒，预计还需{eta_s:.0f}秒）"}]
 
     model = get_model()  # returns immediately when _prewarm_done is set
 
@@ -177,20 +226,34 @@ def _prewarm_background() -> None:
     user message, before the first tool call.  The MCP handshake returns
     fast (sub-2s) while this thread does the heavy lifting.
 
+    Sets _warmup_stage / _warmup_started_at so search_diary() can return
+    structured warming_up status without blocking.
+
     IMPORTANT: slow imports (chromadb) happen OUTSIDE the lock, so
     search_diary() doesn't block if it races with this thread.  Only
     the final pointer assignments go under _chroma_lock."""
-    global _chroma_client, _chroma_collection
+    global _chroma_client, _chroma_collection, _warmup_stage, _warmup_started_at
 
     import time
     t_start = time.time()
+    _warmup_started_at = t_start
+    _warmup_stage = "model"
 
     print("[diary-rag] Background pre-warm started (model + ChromaDB)...",
           file=sys.stderr, flush=True)
 
     # 1. Embedding model (~14s import + ~4s load on first run)
-    get_model()
+    try:
+        get_model()
+    except Exception as e:
+        print(f"[diary-rag] Background model load failed: {e}",
+              file=sys.stderr, flush=True)
+        # Don't set _prewarm_done — let search_diary report the error.
+        # _warmup_stage stays "model" so the elapsed timer keeps running
+        # and eventually triggers the >60s timeout path.
+        return
     t_model = time.time()
+    _warmup_stage = "chromadb"
     print(f"[diary-rag] Model loaded ({t_model - t_start:.0f}s).",
           file=sys.stderr, flush=True)
 
@@ -213,6 +276,7 @@ def _prewarm_background() -> None:
         print("[diary-rag] ChromaDB pre-load failed, will retry on first query.",
               file=sys.stderr, flush=True)
 
+    _warmup_stage = "done"
     _prewarm_done.set()
     print(f"[diary-rag] Pre-warm complete — all deps hot ({time.time() - t_start:.0f}s total).",
           file=sys.stderr, flush=True)
