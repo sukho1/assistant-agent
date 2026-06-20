@@ -33,6 +33,8 @@ _warmup_started_at: float | None = None
 
 
 WARMUP_TIMEOUT_S = 60  # if pre-warm exceeds this, search_diary reports error
+_warmup_restarts = 0
+MAX_WARMUP_RESTARTS = 2  # max warmup thread restarts before giving up
 
 
 def _load_model():
@@ -91,6 +93,7 @@ def search_diary(query: str, top_k: int = 5) -> list:
     Returns:
         List of parent blocks with date, title, type, and full content.
     """
+    global _warmup_restarts, _warmup_started_at, _warmup_stage
     # Pre-warm runs in background thread.  If it hasn't finished, return
     # warming_up status immediately (no blocking) so the client can see
     # stage + elapsed time and decide how long to wait before retrying.
@@ -101,16 +104,31 @@ def search_diary(query: str, top_k: int = 5) -> list:
         elapsed = time.time() - _warmup_started_at if _warmup_started_at else 0
 
         # P1: timeout — pre-warm stuck > 60s is abnormal (model import ~15s,
-        # ChromaDB ~4s, total ~20s).  Report error so the client stops retrying.
+        # ChromaDB ~4s, total ~20s).  The background thread likely died
+        # (model load exception → _prewarm_background returned early).
+        # Restart it instead of giving up immediately.
         if elapsed > WARMUP_TIMEOUT_S:
-            return [{"status": "error",
-                     "stage": _warmup_stage,
-                     "elapsed_s": round(elapsed, 1),
-                     "message": f"预热超时（{_warmup_stage}阶段卡了{elapsed:.0f}秒，预期<20s）。"
-                                f"可能原因：模型缓存损坏、ChromaDB数据损坏、或系统资源不足。"
-                                f"诊断：1) python -c \"from sentence_transformers import SentenceTransformer; SentenceTransformer('{config.EMBED_MODEL_NAME}', local_files_only=True)\" 测试模型加载 "
-                                f"2) 检查HuggingFace缓存 ~/.cache/huggingface/hub/models--BAAI--bge-small-zh-v1.5/ 下的文件完整性 "
-                                f"3) 查看MCP进程stderr输出的traceback定位具体原因"}]
+            if _warmup_restarts < MAX_WARMUP_RESTARTS:
+                _warmup_restarts += 1
+                old_elapsed = elapsed
+                _warmup_started_at = time.time()
+                _warmup_stage = "init"
+                elapsed = 0
+                print(f"[diary-rag] Warmup timed out after {old_elapsed:.0f}s, restarting "
+                      f"(attempt {_warmup_restarts}/{MAX_WARMUP_RESTARTS})...",
+                      file=sys.stderr, flush=True)
+                threading.Thread(target=_prewarm_background, daemon=True).start()
+                # fall through to warming_up response below
+            else:
+                return [{"status": "error",
+                         "stage": _warmup_stage,
+                         "elapsed_s": round(elapsed, 1),
+                         "message": f"预热超时（{_warmup_stage}阶段卡了{elapsed:.0f}秒，预期<20s）。"
+                                    f"已重启{_warmup_restarts}次仍失败。"
+                                    f"可能原因：模型缓存损坏、ChromaDB数据损坏、或系统资源不足。"
+                                    f"诊断：1) python -c \"from sentence_transformers import SentenceTransformer; SentenceTransformer('{config.EMBED_MODEL_NAME}', local_files_only=True)\" 测试模型加载 "
+                                    f"2) 检查HuggingFace缓存 ~/.cache/huggingface/hub/models--BAAI--bge-small-zh-v1.5/ 下的文件完整性 "
+                                    f"3) 查看MCP进程stderr输出的traceback定位具体原因"}]
 
         # P0b: dynamic eta_s based on stage + elapsed instead of hardcoded 26.
         # Model stage: import ~15s + load ~0.3s ≈ 20s total from start.
