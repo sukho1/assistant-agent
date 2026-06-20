@@ -32,13 +32,17 @@ _warmup_stage = "init"  # "model" | "chromadb" | "done"
 _warmup_started_at: float | None = None
 
 
-WARMUP_TIMEOUT_S = 60  # if pre-warm exceeds this, search_diary reports error
+WARMUP_TIMEOUT_S = 75  # > cold-Defender worst case ~55s, < MCP transport timeout 120s
 _warmup_restarts = 0
 MAX_WARMUP_RESTARTS = 2  # max warmup thread restarts before giving up
 
+_warmup_error: str | None = None  # set when warmup thread fails — search_diary returns error immediately
+_warmup_model_done_at: float | None = None  # actual timestamp when model load finished (for dynamic eta)
+_warmup_generation: int = 0  # incremented on restart; old threads discard results
+
 
 def _load_model():
-    """Load the embedding model from local cache (~15s import + ~0.3s weights).
+    """Load the embedding model from local cache (~23s import + ~4s weights, or ~45s with Defender cold).
 
     P0a: Model must be pre-cached (BAAI/bge-small-zh-v1.5).  No network
     fallback — downloading would hang indefinitely on slow Chinese networks
@@ -93,7 +97,7 @@ def search_diary(query: str, top_k: int = 5) -> list:
     Returns:
         List of parent blocks with date, title, type, and full content.
     """
-    global _warmup_restarts, _warmup_started_at, _warmup_stage
+    global _warmup_restarts, _warmup_started_at, _warmup_stage, _warmup_generation, _warmup_error
     # Pre-warm runs in background thread.  If it hasn't finished, return
     # warming_up status immediately (no blocking) so the client can see
     # stage + elapsed time and decide how long to wait before retrying.
@@ -103,53 +107,67 @@ def search_diary(query: str, top_k: int = 5) -> list:
     if not _prewarm_done.is_set():
         elapsed = time.time() - _warmup_started_at if _warmup_started_at else 0
 
-        # P1: timeout — pre-warm stuck > 60s is abnormal (model import ~15s,
-        # ChromaDB ~4s, total ~20s).  The background thread likely died
-        # (model load exception → _prewarm_background returned early).
-        # Restart it instead of giving up immediately.
+        # P0: warmup thread died silently (model load exception →
+        # _prewarm_background returned early without setting _warmup_error).
+        # Report error immediately instead of returning warming_up forever.
+        if _warmup_error is not None:
+            return [{"status": "error",
+                     "stage": _warmup_stage,
+                     "elapsed_s": round(elapsed, 1),
+                     "message": f"预热失败: {_warmup_error}"}]
+
+        # P1: timeout — cold start with Windows Defender takes ~55s;
+        # WARMUP_TIMEOUT_S (75s) is above that but below MCP transport
+        # timeout (120s).  If we reach this, the background thread is stuck
+        # (not just slow) — restart it.
         if elapsed > WARMUP_TIMEOUT_S:
             if _warmup_restarts < MAX_WARMUP_RESTARTS:
                 _warmup_restarts += 1
                 old_elapsed = elapsed
+                _warmup_generation += 1
+                _warmup_error = None  # clear previous error on restart
                 _warmup_started_at = time.time()
                 _warmup_stage = "init"
                 elapsed = 0
+                gen = _warmup_generation
                 print(f"[diary-rag] Warmup timed out after {old_elapsed:.0f}s, restarting "
-                      f"(attempt {_warmup_restarts}/{MAX_WARMUP_RESTARTS})...",
+                      f"(attempt {_warmup_restarts}/{MAX_WARMUP_RESTARTS}, gen={gen})...",
                       file=sys.stderr, flush=True)
-                threading.Thread(target=_prewarm_background, daemon=True).start()
+                threading.Thread(target=_prewarm_background, daemon=True,
+                                 kwargs={"generation": gen}).start()
                 # fall through to warming_up response below
             else:
                 return [{"status": "error",
                          "stage": _warmup_stage,
                          "elapsed_s": round(elapsed, 1),
-                         "message": f"预热超时（{_warmup_stage}阶段卡了{elapsed:.0f}秒，预期<20s）。"
+                         "message": f"预热超时（{_warmup_stage}阶段卡了{elapsed:.0f}秒）。"
                                     f"已重启{_warmup_restarts}次仍失败。"
                                     f"可能原因：模型缓存损坏、ChromaDB数据损坏、或系统资源不足。"
                                     f"诊断：1) python -c \"from sentence_transformers import SentenceTransformer; SentenceTransformer('{config.EMBED_MODEL_NAME}', local_files_only=True)\" 测试模型加载 "
                                     f"2) 检查HuggingFace缓存 ~/.cache/huggingface/hub/models--BAAI--bge-small-zh-v1.5/ 下的文件完整性 "
                                     f"3) 查看MCP进程stderr输出的traceback定位具体原因"}]
 
-        # P0b: dynamic eta_s based on stage + elapsed instead of hardcoded 26.
-        # Model stage: import ~15s + load ~0.3s ≈ 20s total from start.
-        # ChromaDB stage: ~4s on top, so total ~24s from start.
+        # P0b: eta_s — conservative estimate covering cold Windows Defender.
+        # Measured on this machine:
+        #   Cold (Defender first scan): model ~45-50s, chromadb ~5s → ~55s total
+        #   Warm (Defender verdict cached): model ~28s, chromadb ~4.5s → ~33s
+        # Use cold numbers as fallback so eta doesn't lie on first launch of day.
+        MODEL_FALLBACK_S = 50   # model import+load with Defender cold
+        CHROMADB_FALLBACK_S = 5  # chromadb import+init
+        TOTAL_FALLBACK_S = MODEL_FALLBACK_S + CHROMADB_FALLBACK_S  # 55
+
         if _warmup_stage == "model":
-            # model not even loaded yet — at least 20s total
-            if elapsed < 20:
-                eta_s = max(20 - elapsed, 3)
-            else:
-                eta_s = min(elapsed - 20 + 5, 15)
+            eta_s = max(MODEL_FALLBACK_S - elapsed, 2)
         elif _warmup_stage == "chromadb":
-            # model done, chromadb ~4s more
-            if elapsed < 24:
-                eta_s = max(24 - elapsed, 2)
+            # Use actual model load time if available, otherwise fallback
+            if _warmup_model_done_at is not None:
+                model_actual = _warmup_model_done_at - _warmup_started_at
+                chromadb_done_at_est = model_actual + CHROMADB_FALLBACK_S
+                eta_s = max(chromadb_done_at_est - elapsed, 1)
             else:
-                eta_s = min(elapsed - 24 + 3, 10)
-        else:
-            if elapsed < 24:
-                eta_s = max(24 - elapsed, 3)
-            else:
-                eta_s = min(elapsed - 24 + 5, 12)
+                eta_s = max(TOTAL_FALLBACK_S - elapsed, 2)
+        else:  # "init"
+            eta_s = max(TOTAL_FALLBACK_S - elapsed, 3)
 
         return [{"status": "warming_up",
                  "stage": _warmup_stage,
@@ -237,7 +255,7 @@ def search_diary(query: str, top_k: int = 5) -> list:
     ]
 
 
-def _prewarm_background() -> None:
+def _prewarm_background(generation: int = 0) -> None:
     """Eager-load embedding model + ChromaDB in background thread.
 
     Starts the moment the MCP server process launches — before the first
@@ -251,6 +269,7 @@ def _prewarm_background() -> None:
     search_diary() doesn't block if it races with this thread.  Only
     the final pointer assignments go under _chroma_lock."""
     global _chroma_client, _chroma_collection, _warmup_stage, _warmup_started_at
+    global _warmup_error, _warmup_model_done_at
 
     import time
     t_start = time.time()
@@ -260,29 +279,44 @@ def _prewarm_background() -> None:
     print("[diary-rag] Background pre-warm started (model + ChromaDB)...",
           file=sys.stderr, flush=True)
 
-    # 1. Embedding model (~14s import + ~4s load on first run)
+    # 1. Embedding model
+    _t0 = time.time()
     try:
+        import torch as _torch  # noqa: F811
+        print(f"[diary-rag] import torch: {time.time() - _t0:.1f}s",
+              file=sys.stderr, flush=True)
+        _t1 = time.time()
+        import transformers as _tf  # noqa: F811
+        print(f"[diary-rag] import transformers: {time.time() - _t1:.1f}s",
+              file=sys.stderr, flush=True)
+        _t2 = time.time()
         get_model()
+        print(f"[diary-rag] sentence_transformers + model load: {time.time() - _t2:.1f}s",
+              file=sys.stderr, flush=True)
     except Exception as e:
+        _warmup_error = f"Model load failed: {e}"
         print(f"[diary-rag] Background model load failed: {e}",
               file=sys.stderr, flush=True)
-        # Don't set _prewarm_done — let search_diary report the error.
-        # _warmup_stage stays "model" so the elapsed timer keeps running
-        # and eventually triggers the >60s timeout path.
         return
     t_model = time.time()
+    _warmup_model_done_at = t_model
     _warmup_stage = "chromadb"
-    print(f"[diary-rag] Model loaded ({t_model - t_start:.0f}s).",
+    print(f"[diary-rag] Model loaded ({t_model - t_start:.0f}s total).",
           file=sys.stderr, flush=True)
 
     # 2. ChromaDB — slow import happens OUTSIDE the lock so search_diary()
     #    never blocks waiting for this thread.  Only the final pointer
     #    assignment is guarded.
+    _tc0 = time.time()
     try:
         import chromadb  # noqa: F811
-        print("[diary-rag] Loading ChromaDB...", file=sys.stderr, flush=True)
+        print(f"[diary-rag] import chromadb: {time.time() - _tc0:.1f}s",
+              file=sys.stderr, flush=True)
+        _tc1 = time.time()
         client = chromadb.PersistentClient(path=config.CHROMA_DIR)
         collection = client.get_collection(config.COLLECTION_NAME)
+        print(f"[diary-rag] ChromaDB init + get_collection: {time.time() - _tc1:.1f}s",
+              file=sys.stderr, flush=True)
         # Quick pointer assignment under lock — microseconds, not seconds
         with _chroma_lock:
             _chroma_client = client
@@ -294,6 +328,12 @@ def _prewarm_background() -> None:
         print("[diary-rag] ChromaDB pre-load failed, will retry on first query.",
               file=sys.stderr, flush=True)
 
+    # Guard: if this thread was superseded by a restart, don't corrupt state.
+    if generation != _warmup_generation:
+        print(f"[diary-rag] Warmup thread gen={generation} stale "
+              f"(current={_warmup_generation}), discarding.",
+              file=sys.stderr, flush=True)
+        return
     _warmup_stage = "done"
     _prewarm_done.set()
     print(f"[diary-rag] Pre-warm complete — all deps hot ({time.time() - t_start:.0f}s total).",
@@ -306,9 +346,9 @@ if __name__ == '__main__':
     print(f"[diary-rag] SQLite: {config.DB_PATH}", file=sys.stderr, flush=True)
     # Pre-warm the embedding model in a background thread:
     #   - MCP handshake completes in ~2s (no heavy imports during handshake)
-    #   - sentence_transformers (~22s) + chromadb (~4s) load in parallel
-    #   - When the warm-up search_diary call arrives, get_model() blocks until
-    #     the background thread finishes loading (at most ~22s from start)
-    #   - MCP timeout (60s) covers worst case where warm-up call hits immediately
-    threading.Thread(target=_prewarm_background, daemon=True).start()
+    #   - Cold start (Defender first scan): model ~45-50s + ChromaDB ~5s ≈ 55s
+    #   - Warm start (Defender verdict cached): model ~28s + ChromaDB ~4.5s ≈ 33s
+    #   - MCP transport timeout (120s in .mcp.json) covers worst case
+    threading.Thread(target=_prewarm_background, kwargs={"generation": 0},
+                     daemon=True).start()
     mcp.run(transport="stdio")
