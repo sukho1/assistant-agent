@@ -118,10 +118,32 @@ def search_diary(query: str, top_k: int = 5) -> list:
 
         # P1: timeout — cold start with Windows Defender takes ~55s;
         # WARMUP_TIMEOUT_S (75s) is above that but below MCP transport
-        # timeout (120s).  If we reach this, the background thread is stuck
-        # (not just slow) — restart it.
+        # timeout (120s).  If we reach this, first check whether the engine
+        # is actually hot — the old thread may have loaded everything but
+        # been denied _prewarm_done by the generation guard.
+        # Only restart if the model is genuinely not loaded (thread stuck).
         if elapsed > WARMUP_TIMEOUT_S:
-            if _warmup_restarts < MAX_WARMUP_RESTARTS:
+            # Engine check: model is the heavy part.  If it's loaded, the
+            # old thread did its job — complete ChromaDB if needed and
+            # proceed to normal query.  Don't restart.
+            if _model is not None:
+                if _chroma_collection is None:
+                    try:
+                        import chromadb  # noqa: F811
+                        c = chromadb.PersistentClient(path=config.CHROMA_DIR)
+                        col = c.get_collection(config.COLLECTION_NAME)
+                        with _chroma_lock:
+                            _chroma_client = c
+                            _chroma_collection = col
+                    except Exception:
+                        pass  # ChromaDB init will be retried in query path
+                _prewarm_done.set()
+                _warmup_stage = "done"
+                print(f"[diary-rag] Warmup timeout triggered at {elapsed:.0f}s "
+                      f"but model was already hot — completing and proceeding.",
+                      file=sys.stderr, flush=True)
+                # fall through to normal query path below
+            elif _warmup_restarts < MAX_WARMUP_RESTARTS:
                 _warmup_restarts += 1
                 old_elapsed = elapsed
                 _warmup_generation += 1
@@ -329,10 +351,21 @@ def _prewarm_background(generation: int = 0) -> None:
               file=sys.stderr, flush=True)
 
     # Guard: if this thread was superseded by a restart, don't corrupt state.
+    # But if we already loaded model + ChromaDB, the engine is hot — don't
+    # discard that work just because a new thread was spawned.  Set the
+    # flag so search_diary won't hit the timeout and restart needlessly.
     if generation != _warmup_generation:
-        print(f"[diary-rag] Warmup thread gen={generation} stale "
-              f"(current={_warmup_generation}), discarding.",
-              file=sys.stderr, flush=True)
+        if _model is not None and _chroma_collection is not None:
+            _warmup_stage = "done"
+            _prewarm_done.set()
+            print(f"[diary-rag] Warmup thread gen={generation} stale "
+                  f"but engine hot — setting _prewarm_done anyway "
+                  f"({time.time() - t_start:.0f}s total).",
+                  file=sys.stderr, flush=True)
+        else:
+            print(f"[diary-rag] Warmup thread gen={generation} stale "
+                  f"(current={_warmup_generation}), discarding.",
+                  file=sys.stderr, flush=True)
         return
     _warmup_stage = "done"
     _prewarm_done.set()
