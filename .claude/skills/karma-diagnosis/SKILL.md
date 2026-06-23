@@ -83,6 +83,7 @@ description: Use when the visitor exhibits self-attack, toxic shame, harsh inner
 - **关键词路**：从结构化分析中提取关键人物/事件/情绪词/业障模式，10-20字，调用 `search_diary(query="关键词", top_k=3)`
 - **概述路**：结合业障诊断结论，用一句自然语言概括核心矛盾，30-40字，调用 `search_diary(query="概述", top_k=3)`
 - **合并去重**：两路结果合并，按 `parent_id` 去重，保留 4-5 条。日记原文作为内部上下文注入 LLM 提示，不展示给用户。
+- **并行**：关键词路和概述路互不依赖，应**同时发出**两个MCP调用（同一批次）。第二轮日记检索与本skill的知识文章加载互不依赖，也可**同时进行**。
 
 ## 对话指南
 
