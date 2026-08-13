@@ -54,7 +54,7 @@
 - **日记目录缺失即跳过**：若项目根目录不存在 `diary/` 文件夹，则跳过所有日记检索/日记分析步骤，其余流程照常执行。
 
 **重要区分——"调用 Skill"与"读取文件"是两件事**：
-- **Skill 调用（不可跳过）**：A 类消息的**每一轮**都必须执行 `Skill("counseling")`。即便是同一会话的第 2、3、N 轮，counseling 的完整分析流水线（输入分析→策略→四维扫描→子skill路由→输出自检）是每轮必走的路径，不可因"之前调用过"而省略。
+- **Skill 调用（不可跳过）**：A 类消息的**每一轮**都必须执行 `Skill("counseling")`。即便是同一会话的第 2、3、N 轮，counseling 的完整分析流水线（输入分析→策略→四维扫描→子skill路由→日记检索→输出自检）是每轮必走的路径，不可因"之前调用过"而省略。
 - **文件读取（可复用）**：skill 文件、知识库文章、用户档案如果在当前上下文窗口中已存在，不必重复 Read()——直接引用上下文中的内容即可。但这不影响 Skill 调用的强制性。
 
 skill 在项目根 `.claude/skills/` 下。知识库在 `ma-zhuang/knowledge/` 下。
@@ -79,3 +79,29 @@ skill 在项目根 `.claude/skills/` 下。知识库在 `ma-zhuang/knowledge/` �
 4. 子 skill 继承 counseling 已加载的 profile、文章和框架；同一会话内，只要路由没有变化，也不重复读 counseling 本体。
 
 “之前读过”不等于“现在必须再读”。默认复用上下文，只在缺失或不确定时才补读。
+
+### 日记语义检索
+
+本项目配置了 `diary-rag` MCP 服务器（`.mcp.json`），提供 `mcp__diary-rag__search_diary(query, top_k)` 工具，可语义搜索 8 年+日记内容。
+
+- 日记检索的完整流程见 `Skill("counseling")` 中的"日记检索工具说明"和"日记检索（第一轮/第二轮）"。
+- **始终优先使用 MCP 工具** `mcp__diary-rag__search_diary`。每次对话开始时确认该工具在可用工具列表中。若在列表中就通过 MCP 调用——不要自行编写 Python 代码替代。
+- **尽早触发预热检查**：counseling 被调用、确认 MCP 工具在列表后，尽早发一次单路 `search_diary("预检", top_k=1)`——可与档案读取并行，不阻塞。目的是尽早确认预热状态，让后台线程有尽可能多的时间完成预热，减少后续步骤等待。
+- **MCP 返回 warming_up 时**：`eta_s` 已由服务端动态计算（ONNX 快路径通常 1–3s；缺少 ONNX 依赖时回退 PyTorch，冷启动 Defender 扫描下 model 阶段 ≈ 50s）。用 `eta_s` 作为等待秒数重试 MCP，min(eta_s+3, 15)s 防抖。重试后 `elapsed_s` 在涨说明预热推进中，正常 1-2 次重试命中。
+- **MCP 返回 error**：后台预热线程可能已死亡（模型加载异常致其提前退出）。重试一次 MCP——服务端检测超时后会自动重启预热线程（最多 2 次）。重试后仍 error → 预热确实无法完成，提示用户重启 Claude Code 会话（MCP 进程会重建）。不要切 Bash 回退——同一进程不可用。
+- **Bash 回退仅限一种场景**：MCP 工具完全不在可用工具列表中（说明 MCP 进程未能启动）。其他情况（warming_up、error）一律重试 MCP，不切 Bash。
+
+### 日记 MCP 热加载
+
+`.mcp.json` 配置了 `python diary_rag/server.py`，Claude Code 在会话启动时将其作为子进程拉起。进程启动后，`server.py` 立即在后台线程中加载 ONNX embedding 模型（BAAI/bge-small-zh-v1.5，快路径约 1–3s；缺少 ONNX 依赖时回退 PyTorch，冷启动约 45–50s）和 ChromaDB（约 5s），同时 MCP 握手在 2 秒内完成。
+
+后续 `mcp__diary-rag__search_diary` 工具调用都在**同一个进程**内执行，直接读取后台线程已加载好的全局变量，无需等待。
+
+`search_diary` 检查 `_prewarm_done` 标记，预热未完成则立即返回结构化 warming_up（`stage` + `elapsed_s` + `eta_s`），不阻塞。预热完成后直接走全局变量热路径，无需等待。
+
+- **始终优先使用 MCP 工具** `mcp__diary-rag__search_diary(query, top_k)`
+- **MCP 返回 warming_up 时**：等 `min(eta_s+3, 15)s` 后重试 MCP（不切 Bash）。`elapsed_s` 在涨说明预热推进中，1-2 次重试命中。
+- **MCP 返回 error 时**：重试一次（服务端自愈会重启预热）。仍 error 则提示重启会话。
+- **Bash 回退仅限 MCP 工具完全不在列表中的场景**。
+
+不需要强制预热指令——后台线程已经做了这件事。
