@@ -1,0 +1,85 @@
+# Codex 版权限规则
+# 对应 Claude 版 `.claude/settings.local.json` 中的 permissions.allow。
+# 这里只放常见的只读/低风险命令；修改类、安装类、网络敏感命令默认仍会询问。
+
+# 只读 Git 操作允许在沙箱外执行。
+prefix_rule(
+    pattern = ["git", ["status", "log", "diff", "show", "branch", "remote", "ls-remote", "fetch", "rev-parse", "check-ignore", "--version"]],
+    decision = "allow",
+    justification = "只读 Git 查询不修改仓库，允许在沙箱外执行。",
+)
+
+# GitHub CLI 的只读查询允许在沙箱外执行。
+prefix_rule(
+    pattern = ["gh", ["--version", "--help"]],
+    decision = "allow",
+    justification = "读取 gh 版本和帮助信息。",
+)
+
+prefix_rule(
+    pattern = ["gh", "auth", "status"],
+    decision = "allow",
+    justification = "查看 GitHub 登录状态。",
+)
+
+prefix_rule(
+    pattern = ["gh", "pr", ["view", "list"]],
+    decision = "allow",
+    justification = "只读查看 PR 列表和详情。",
+)
+
+prefix_rule(
+    pattern = ["gh", "issue", ["view", "list"]],
+    decision = "allow",
+    justification = "只读查看 issue 列表和详情。",
+)
+
+# Python/Node 包管理器的只读查询允许在沙箱外执行。
+prefix_rule(
+    pattern = ["python", ["--version"]],
+    decision = "allow",
+    justification = "读取 Python 版本。",
+)
+
+prefix_rule(
+    pattern = ["pip", ["list", "show"]],
+    decision = "allow",
+    justification = "只读依赖查询。",
+)
+
+prefix_rule(
+    pattern = ["npm", ["list", "--version", "view"]],
+    decision = "allow",
+    justification = "只读 npm 依赖查询。",
+)
+
+# 有修改/安装/网络写入风险的命令显式要求人工确认。
+prefix_rule(
+    pattern = ["git", ["add", "commit", "push", "reset", "checkout", "restore", "stash", "merge", "rebase", "tag", "switch"]],
+    decision = "prompt",
+    justification = "修改 Git 仓库状态前需要确认。",
+)
+
+prefix_rule(
+    pattern = ["gh", "pr", ["create", "merge", "close", "review"]],
+    decision = "prompt",
+    justification = "修改 PR 状态前需要确认。",
+)
+
+prefix_rule(
+    pattern = ["gh", ["repo", "release", "run"]],
+    decision = "prompt",
+    justification = "修改 GitHub 仓库、发布或执行远端动作前需要确认。",
+)
+
+prefix_rule(
+    pattern = ["pip", ["install", "uninstall", "freeze"]],
+    decision = "prompt",
+    justification = "安装或修改 Python 依赖前需要确认。",
+)
+
+prefix_rule(
+    pattern = ["npm", ["install", "uninstall", "update", "run"]],
+    decision = "prompt",
+    justification = "安装或执行 npm 脚本前需要确认。",
+)

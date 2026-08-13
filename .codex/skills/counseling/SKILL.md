@@ -3,6 +3,20 @@ name: "counseling"
 description: "Use when the visitor begins a conversation, when comprehensive understanding of their situation is needed, or when determining which specific framework or sub-skill to route to. Covers the four-dimensional topic positioning model, underlying psychological model, routing to sub-skills, and core conversation principles."
 ---
 
+> **知识库路径**: `ma-zhuang/knowledge/`（相对于项目根目录）
+>
+> 知识路由表中的文章需从对应系列子目录加载。系列子目录：
+> - `zhuangzi-series/` — 庄子系列
+> - `link-series/` — 链接系列
+> - `karma-series/` — 业障系列
+> - `marx-series/` — 马主义系列
+> - `self-psychology/` — 自体心理学系列
+>
+> 加载文章时使用相对于项目根目录的完整路径，如 `ma-zhuang/knowledge/zhuangzi-series/论活在当下.md`。
+> 文章中找不到时，用 文件搜索（如 `rg --files` 或 `rg`） 在 `ma-zhuang/knowledge/` 下搜索文件名。
+> 档案文件（user_profile/）位于项目根目录，不在知识库中。
+
+
 # 心灵咨询综合理解
 
 ## 核心处理流程
@@ -55,7 +69,7 @@ description: "Use when the visitor begins a conversation, when comprehensive und
 
 - **维1·人生五要素**：学业、事业、社交、身体、心理心灵。判断哪个要素是当前核心课题。
 - **维2·链接维**：6类链接对象（自己、他人、学业事业、社会、历史、大自然）的链接/纠缠判断。→ 定位到此维必须调 `link-rebuild`
-- **维3·业障维**：内在业障（防御机制，不需批判）与外在业障（社会客观事实）。现象的内在根源是底层自体课题。→ 定位到此维必须调 `karma-diagnosis`
+- **维3·业障维**：内在业障（防御机制，不需批判）与外在业障（社会客观事实）。→ 内在业障调 `karma-diagnosis`；外在业障调 `alienation`。**硬规则：只要用户提到具体的外部压迫事件——被PUA/被剥削/被压价、结构性谈判弱势、债务/斩杀线、平台数据反馈压力、求职焦虑型环境、打工PTSD——必须同时调用 `alienation`，无论内在业障是否为主。外在业障是唯物的，不因内在涵容强而消失。两者都涉及则两个都调。**
 - **维4·心灵维**：心灵层级定位（基础→业障→开悟→静→自我实现）。→ 定位到此维必须调 `innate-wholeness`
 
 注意：
@@ -108,6 +122,7 @@ LLM 默认语感（人需成长升级、努力是好事、苦难有意义、接�
 - 历史轨迹（多轮时）：是否连接了近期关键节点？
 - 结构覆盖：用户有分点/多主题时，是否覆盖核心结构？
 - 文章使用：加载的文章至少有一个观点纳入？
+- 日记检索：各子skill强制的第二轮日记检索是否执行？结果是否纳入分析？
 - 遗漏/偷懒/幻觉/过度包装？
 
 **行文用语**：
@@ -141,15 +156,16 @@ LLM 默认语感（人需成长升级、努力是好事、苦难有意义、接�
 | 自我否定、羞耻感、自我攻击、严苛内心声音 | 业障诊断 | `karma-diagnosis` |
 | 跟人类似关系困难、被关系消耗 | 业障诊断 | `karma-diagnosis` |
 | "活着没意义""不知道自己要什么" | 本自具足 | `innate-wholeness` |
-| 社会压力、内卷焦虑、阶级焦虑、被系统异化感 | 异化与社会 | `alienation` |
-| 五要素中明确链接对象缺失 | 链接重建 | `link-rebuild` |
+| 社会压力、内卷焦虑、阶级焦虑、被系统异化感；被PUA/被剥削压价、结构性谈判弱势、债务斩杀线、平台反馈压迫、打工PTSD、职场焦虑、被他人负能量冲击 | 异化与社会 | `alienation` |
+| 五要素的链接缺失、陷入纠缠 | 链接重建 | `link-rebuild` |
 | 深层自体议题（破碎自体、虚假自体） | 自体疗愈 | `self-healing` |
-| 需要深度理解人的心理运作 | 底层心理模型 | `deep-psychology` |
+| 需要深入理解人的心理系统运作 | 底层心理模型 | `deep-psychology` |
 
 ---
 
 ## 渐进加载规则
 - **上下文复用优先**：加载任何文件前，先检查是否已在当前会话上下文中。已在上下文的档案和文章直接引用，不重复读取。仅在上下文缺失该文件时才加载。
+- **并行读取**：启动时加载的用户档案、知识文章等只读文件彼此无依赖，应在同一批并行发出；只有子 skill 路由必须等待四维扫描定位结果。
 - **启动时加载用户档案**：读取 `user_profile/comprehensive/overview.md`，获取来访者的当前综合状态、五综合体动态、心灵维动态和最近关键变化。随后按需读取 `four-dimensions/dim1-elements/overview.md`、`dim2-links/overview.md`、`dim3-karma/overview.md`。在此档案背景下展开本次分析。如果 `user_profile/` 不存在则跳过。**子 skill 继承 counseling 已加载的全部档案，不重复读取。**
 - **周记加载**：overview 已覆盖最近关键变化时不额外拉周记。仅当对话涉及近几日时序细节且 overview 中未记录时，按需加载当周周记（`comprehensive/weekly/` + 相关维度 `weekly/`）。文件不存在则跳过。
 - **月报/季报/年报加载**：深度分析场景下，若用户话题跨越数周、涉及较长时序轨迹，按需加载月报（`comprehensive/monthly/`）或季报（`comprehensive/quarterly/`）；涉及年度级回顾或重大人生转折时加载年报（`comprehensive/annual/`）。从近到远逐级加载——周→月→季→年，不必一次性全加。文件不存在则跳过。
@@ -170,6 +186,7 @@ LLM 默认语感（人需成长升级、努力是好事、苦难有意义、接�
 | 最底层的心理学模型 | 最底层的心理学模型.md | 五综合体框架完整展开：感受、认知、涵容、能量、力比多；本框架vs马斯洛需求层次；理解人心的底层操作系统 |
 | 业障体系总览——起源、形成、阻滞、消除 | 业障·专题.md | 业障的起源与根源；碎冰、制冰、刺、高墙等阻滞机制；内在业障（防御保护）vs外在业障（实质伤害）；消除是自然过程非意志战斗 |
 | 敬畏业障——业障的客观唯物、共处之道 | 敬畏业障.md | 唯物角度看业障的客观存在（历史局限性、阶级局限性）；敬畏业障也是敬畏自性光明；与业障共处而非对抗消灭；社交只筛选不改变；敬畏业障更活在当下、更实事求是 |
+| 马庄心理学总纲领——战场在心里、专属魔境、长征奥德赛 | 我们这代人的战场在心里每个人最重要的朋友和敌人都是自己.md | 总纲领：每个人最重要的朋友和敌人都是自己——本我是盟友业障是敌；战场在心里长征奥德赛；专属魔境游击战；大他者内化包税人；马克思主义者要玩起来赚钱；星星之火交映成辉 |
 
 ---
 

@@ -16,6 +16,7 @@
 ### claude用户进入项目文件夹即可对话
 
 - 自动加载项目级的claude.md，并自动调用各skill
+- Skill 的唯一事实源是根目录 `.claude/skills/`；Codex 用户可直接读取根目录 `AGENTS.md`，`.codex/skills/` 由 `scripts/sync_codex_skills.py` 从 `.claude/skills/` 生成。
 
 ### 非claude用户，请输入以下指令：
 
@@ -83,20 +84,29 @@
 ```
 assistant-agent/
 ├── CLAUDE.md                          # 项目规则与工作流
+├── AGENTS.md                          # Codex 版项目规则与工作流
 ├── README.md                          # 本文件
 ├── .gitignore
 ├── .claude/
 │   ├── settings.local.json
-│   └── skills/                             # Skill 定义 *** 核心
+│   └── skills/                             # Skill 定义 *** 唯一事实源
 │       ├── counseling/                     # 顶层咨询路由、总路由
 │       ├── alienation/                     # 异化专题
 │       ├── deep-psychology/                # 深层心理分析
+│       ├── diary-process/                  # 日记批处理
 │       ├── innate-wholeness/               # 本自具足
 │       ├── karma-diagnosis/                # 业障诊断
+│       ├── link-past-self/                 # 链接过去的自己
 │       ├── link-rebuild/                   # 链接重建
 │       ├── profile-update/                 # 用户画像更新
 │       ├── self-healing/                   # 自体疗愈
 │       └── trace/                          # 分析追溯
+├── .codex/
+│   ├── config.toml                       # Codex 项目配置
+│   ├── rules/default.rules                # Codex 权限规则
+│   └── skills/                            # 由 sync_codex_skills.py 生成
+├── scripts/
+│   └── sync_codex_skills.py               # 从 Claude skill 生成 Codex skill
 ├── ma-zhuang/                          # 核心资产
 │   ├── knowledge/                     # 知识库文章
 │   │   ├── karma-series/              # 业障系列
