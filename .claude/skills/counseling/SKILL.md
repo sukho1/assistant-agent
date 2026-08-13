@@ -61,6 +61,32 @@ description: "Use when the visitor begins a conversation, when comprehensive und
 
 注意：多数用户只发一段话，不默认对方会继续回复。可用引导式对话，但不依赖它。
 
+### 日记检索工具说明
+
+**主路径（始终优先）**：MCP 工具 `mcp__diary-rag__search_diary(query, top_k)`
+
+此工具由 `.mcp.json` 中配置的 `diary-rag` MCP 服务器提供（实现：`diary_rag/server.py`，FastMCP stdio transport）。正常情况下此工具始终在可用工具列表中，直接调用即可。
+
+- **参数**：`query`（自然语言或关键词字符串）、`top_k`（返回父块数量，默认 5）
+- **返回**：`[{id, date, title, type, char_count, content}, ...]`，按语义相似度降序，会话内自动去重
+
+**回退路径（仅限 MCP 工具确实不可用时）**：
+
+若检查确认 `mcp__diary-rag__search_diary` 不在当前可用工具列表中，使用以下 Bash 回退。注意：回退仅作为最后手段——每轮日记检索前都应先确认 MCP 工具是否已恢复，不要因为上一轮用了回退就跳过本轮检查：
+
+```bash
+HF_HUB_OFFLINE=1 python -c "import sys; sys.path.insert(0,'diary_rag'); from server import search_diary; import json; r=search_diary('QUERY', top_k=3); print(json.dumps(r, ensure_ascii=False))"
+```
+
+### 日记检索（第一轮）
+
+四维扫描和五综合体分析完成后，调用 MCP 工具 `mcp__diary-rag__search_diary` 检索相关日记记录作为内部上下文。
+
+- **关键词路**：从分析中提取核心关键词（人名/课题/模式），10-20字，调用 `mcp__diary-rag__search_diary(query="关键词", top_k=3)`
+- **概述路**：将当前对话的核心矛盾、主要课题概括为一句自然语言，30-40字，调用 `mcp__diary-rag__search_diary(query="概述", top_k=3)`
+- **合并去重**：两路结果合并（最多6条候选），按 `parent_id` 去重，保留 4-5 条。日记原文作为内部上下文注入后续子 skill 的 LLM 提示，不展示给用户（除非用户要求参考来源）。
+- **并行**：关键词路和概述路互不依赖，应**同时发出**两个 `mcp__diary-rag__search_diary` 调用（同一批次并行），节省往返延迟。
+
 ## 两个核心模型（内部扫描工具）
 
 快速定位用户"当下核心课题、主要矛盾、关键点是什么"。框架始终在线，不机械罗列。
@@ -69,7 +95,7 @@ description: "Use when the visitor begins a conversation, when comprehensive und
 
 - **维1·人生五要素**：学业、事业、社交、身体、心理心灵。判断哪个要素是当前核心课题。
 - **维2·链接维**：6类链接对象（自己、他人、学业事业、社会、历史、大自然）的链接/纠缠判断。→ 定位到此维必须调 `link-rebuild`
-- **维3·业障维**：内在业障（防御机制，不需批判）与外在业障（社会客观事实）。→ 内在业障调 `karma-diagnosis`；外在业障调 `alienation`。**硬规则：只要用户提到具体的外部压迫事件——被PUA/被剥削/被压价、结构性谈判弱势、债务/斩杀线、平台数据反馈压力、求职焦虑型环境、打工PTSD——必须同时调用 `alienation`，无论内在业障是否为主。外在业障是唯物的，不因内在涵容强而消失。两者都涉及则两个都调。**
+- **维3·业障维**：内在业障（防御机制，不需批判）与外在业障（社会客观事实）。现象的内在根源是底层自体课题。→ 定位到此维必须调 `karma-diagnosis`
 - **维4·心灵维**：心灵层级定位（基础→业障→开悟→静→自我实现）。→ 定位到此维必须调 `innate-wholeness`
 
 注意：
@@ -156,17 +182,16 @@ LLM 默认语感（人需成长升级、努力是好事、苦难有意义、接�
 | 自我否定、羞耻感、自我攻击、严苛内心声音 | 业障诊断 | `karma-diagnosis` |
 | 跟人类似关系困难、被关系消耗 | 业障诊断 | `karma-diagnosis` |
 | "活着没意义""不知道自己要什么" | 本自具足 | `innate-wholeness` |
-| 社会压力、内卷焦虑、阶级焦虑、被系统异化感；被PUA/被剥削压价、结构性谈判弱势、债务斩杀线、平台反馈压迫、打工PTSD、职场焦虑、被他人负能量冲击 | 异化与社会 | `alienation` |
-| 五要素的链接缺失、陷入纠缠 | 链接重建 | `link-rebuild` |
+| 社会压力、内卷焦虑、阶级焦虑、被系统异化感 | 异化与社会 | `alienation` |
+| 五要素中明确链接对象缺失 | 链接重建 | `link-rebuild` |
 | 深层自体议题（破碎自体、虚假自体） | 自体疗愈 | `self-healing` |
-| 需要深入理解人的心理系统运作 | 底层心理模型 | `deep-psychology` |
+| 需要深度理解人的心理运作 | 底层心理模型 | `deep-psychology` |
 
 ---
 
 ## 渐进加载规则
 - **上下文复用优先**：加载任何文件前，先检查是否已在当前会话上下文中。已在上下文的档案和文章直接引用，不重复读取。仅在上下文缺失该文件时才加载。
-- **并行读取**：启动时加载的用户档案、知识文章等只读文件彼此无依赖，应在同一批并行发出；只有子 skill 路由必须等待四维扫描定位结果。
-- **启动时加载用户档案**：读取 `user_profile/comprehensive/overview.md`，获取来访者的当前综合状态、五综合体动态、心灵维动态和最近关键变化。随后按需读取 `four-dimensions/dim1-elements/overview.md`、`dim2-links/overview.md`、`dim3-karma/overview.md`。在此档案背景下展开本次分析。如果 `user_profile/` 不存在则跳过。**子 skill 继承 counseling 已加载的全部档案，不重复读取。**
+- **启动时加载用户档案**：**同时并行加载** `user_profile/comprehensive/overview.md`、`four-dimensions/dim1-elements/overview.md`、`dim2-links/overview.md`、`dim3-karma/overview.md`（四份文件互不依赖，同一批次发出）。在此档案背景下展开本次分析。如果文件不存在则跳过对应文件。**子 skill 继承 counseling 已加载的全部档案，不重复读取。**
 - **周记加载**：overview 已覆盖最近关键变化时不额外拉周记。仅当对话涉及近几日时序细节且 overview 中未记录时，按需加载当周周记（`comprehensive/weekly/` + 相关维度 `weekly/`）。文件不存在则跳过。
 - **月报/季报/年报加载**：深度分析场景下，若用户话题跨越数周、涉及较长时序轨迹，按需加载月报（`comprehensive/monthly/`）或季报（`comprehensive/quarterly/`）；涉及年度级回顾或重大人生转折时加载年报（`comprehensive/annual/`）。从近到远逐级加载——周→月→季→年，不必一次性全加。文件不存在则跳过。
 - **每次本skill被调用时，必须根据核心课题从知识路由表中选择至少1篇文章加载。**
@@ -186,7 +211,6 @@ LLM 默认语感（人需成长升级、努力是好事、苦难有意义、接�
 | 最底层的心理学模型 | 最底层的心理学模型.md | 五综合体框架完整展开：感受、认知、涵容、能量、力比多；本框架vs马斯洛需求层次；理解人心的底层操作系统 |
 | 业障体系总览——起源、形成、阻滞、消除 | 业障·专题.md | 业障的起源与根源；碎冰、制冰、刺、高墙等阻滞机制；内在业障（防御保护）vs外在业障（实质伤害）；消除是自然过程非意志战斗 |
 | 敬畏业障——业障的客观唯物、共处之道 | 敬畏业障.md | 唯物角度看业障的客观存在（历史局限性、阶级局限性）；敬畏业障也是敬畏自性光明；与业障共处而非对抗消灭；社交只筛选不改变；敬畏业障更活在当下、更实事求是 |
-| 马庄心理学总纲领——战场在心里、专属魔境、长征奥德赛 | 我们这代人的战场在心里每个人最重要的朋友和敌人都是自己.md | 总纲领：每个人最重要的朋友和敌人都是自己——本我是盟友业障是敌；战场在心里长征奥德赛；专属魔境游击战；大他者内化包税人；马克思主义者要玩起来赚钱；星星之火交映成辉 |
 
 ---
 
