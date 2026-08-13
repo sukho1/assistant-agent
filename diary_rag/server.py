@@ -1,0 +1,413 @@
+"""MCP Server for diary RAG search. Stdio transport, singleton model.
+
+Fast path: loads the pre-exported BGE ONNX model with onnxruntime and
+tokenizers, avoiding the 30-55s PyTorch/sentence-transformers startup.
+If the ONNX files or runtime libraries are missing, it falls back to
+SentenceTransformer so the server still starts.
+"""
+
+from __future__ import annotations
+
+import os
+import sqlite3
+import sys
+import threading
+import time
+from mcp.server.fastmcp import FastMCP
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import config
+
+# Keep network requests offline — model is pre-cached, no download fallback.
+os.environ.setdefault("HF_HUB_OFFLINE", "1")
+# Disable tqdm in stdio MCP context.
+os.environ.setdefault("TQDM_DISABLE", "1")
+
+
+class OnnxEmbedder:
+    """Small BGE encoder using the exported ONNX backbone and tokenizer.json."""
+
+    def __init__(self, tokenizer, session):
+        import numpy as np
+
+        self._tokenizer = tokenizer
+        self._session = session
+        self._np = np
+        self._run_lock = threading.Lock()
+
+    def encode(self, texts, normalize_embeddings=True, show_progress_bar=False):
+        np = self._np
+        vectors = []
+
+        for text in texts:
+            enc = self._tokenizer.encode(text)
+            ids = list(enc.ids)
+            mask = list(getattr(enc, "attention_mask", None) or [1] * len(ids))
+            type_ids = list(getattr(enc, "type_ids", None) or [0] * len(ids))
+
+            if not ids:
+                unk = self._tokenizer.token_to_id("[UNK]") or 100
+                ids, mask, type_ids = [unk], [1], [0]
+
+            ids = ids[: config.EMBED_MAX_TOKENS]
+            mask = mask[: config.EMBED_MAX_TOKENS]
+            type_ids = type_ids[: config.EMBED_MAX_TOKENS]
+
+            feed = {
+                "input_ids": np.asarray([ids], dtype=np.int64),
+                "attention_mask": np.asarray([mask], dtype=np.int64),
+                "token_type_ids": np.asarray([type_ids], dtype=np.int64),
+            }
+
+            # onnxruntime sessions are not fully thread-safe for concurrent run()
+            # calls, so serialize the tiny inference step.
+            with self._run_lock:
+                last_hidden = self._session.run(None, feed)[0]
+
+            # BGE-small-zh-v1.5 uses CLS pooling, then L2 normalization.
+            vector = np.asarray(last_hidden[0, 0, :], dtype=np.float32)
+            if normalize_embeddings:
+                norm = float(np.linalg.norm(vector))
+                if norm > 1e-12:
+                    vector = vector / norm
+            vectors.append(vector)
+
+        return vectors
+
+
+# ── Singleton model + ChromaDB ──
+_model = None
+_model_lock = threading.Lock()
+
+_chroma_client = None
+_chroma_collection = None
+_chroma_lock = threading.Lock()
+
+_prewarm_done = threading.Event()
+_warmup_stage = "init"  # "model" | "chromadb" | "done"
+_warmup_started_at: float | None = None
+
+WARMUP_TIMEOUT_S = 75
+_warmup_restarts = 0
+MAX_WARMUP_RESTARTS = 2
+
+_warmup_error: str | None = None
+_warmup_model_done_at: float | None = None
+_warmup_generation: int = 0
+
+
+def _load_onnx_model():
+    """Load the exported BGE ONNX model and fast tokenizer.
+
+    Raises if the runtime files or libraries are unavailable; _load_model()
+    then falls back to SentenceTransformer.
+    """
+    import numpy as np
+    import onnxruntime as ort
+    from tokenizers import Tokenizer
+
+    if not os.path.isfile(config.ONNX_MODEL_PATH):
+        raise FileNotFoundError(f"missing ONNX model: {config.ONNX_MODEL_PATH}")
+    if not os.path.isfile(config.TOKENIZER_PATH):
+        raise FileNotFoundError(f"missing tokenizer: {config.TOKENIZER_PATH}")
+
+    tokenizer = Tokenizer.from_file(config.TOKENIZER_PATH)
+    tokenizer.enable_truncation(max_length=config.EMBED_MAX_TOKENS)
+
+    session_options = ort.SessionOptions()
+    session_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+    session_options.intra_op_num_threads = min(4, max(1, (os.cpu_count() or 1) - 1))
+    session = ort.InferenceSession(
+        config.ONNX_MODEL_PATH,
+        sess_options=session_options,
+        providers=["CPUExecutionProvider"],
+    )
+    return OnnxEmbedder(tokenizer, session)
+
+
+def _load_model():
+    """Load the embedding model, preferring ONNX and falling back to PyTorch."""
+    import traceback
+
+    print("[diary-rag] Loading ONNX embedding model...", file=sys.stderr, flush=True)
+    try:
+        model = _load_onnx_model()
+        model.encode(["warm-up"], normalize_embeddings=True, show_progress_bar=False)
+        print("[diary-rag] ONNX model ready.", file=sys.stderr, flush=True)
+        return model
+    except Exception as exc:
+        print(
+            f"[diary-rag] ONNX load failed ({exc}); falling back to "
+            "SentenceTransformer.",
+            file=sys.stderr,
+            flush=True,
+        )
+        traceback.print_exc(file=sys.stderr)
+
+    from sentence_transformers import SentenceTransformer
+
+    print("[diary-rag] Loading SentenceTransformer from cache...", file=sys.stderr, flush=True)
+    model = SentenceTransformer(config.EMBED_MODEL_NAME, local_files_only=True)
+    model.encode(["warm-up"], normalize_embeddings=True, show_progress_bar=False)
+    print("[diary-rag] SentenceTransformer ready.", file=sys.stderr, flush=True)
+    return model
+
+
+def get_model():
+    """Return the model, loading it on first access if needed."""
+    global _model
+    if _model is None:
+        with _model_lock:
+            if _model is None:
+                _model = _load_model()
+    return _model
+
+
+# ── Session state ──
+_returned_ids: set = set()
+
+
+# ── MCP Server ──
+mcp = FastMCP("diary-rag")
+
+
+@mcp.tool()
+def search_diary(query: str, top_k: int = 5) -> list:
+    """Search diary entries by semantic similarity."""
+    global _warmup_restarts, _warmup_started_at, _warmup_stage, _warmup_generation, _warmup_error
+
+    if not _prewarm_done.is_set():
+        elapsed = time.time() - _warmup_started_at if _warmup_started_at else 0
+
+        if _warmup_error is not None:
+            return [{
+                "status": "error",
+                "stage": _warmup_stage,
+                "elapsed_s": round(elapsed, 1),
+                "message": f"预热失败: {_warmup_error}",
+            }]
+
+        if elapsed > WARMUP_TIMEOUT_S:
+            if _model is not None:
+                if _chroma_collection is None:
+                    try:
+                        import chromadb
+
+                        client = chromadb.PersistentClient(path=config.CHROMA_DIR)
+                        collection = client.get_collection(config.COLLECTION_NAME)
+                        with _chroma_lock:
+                            _chroma_client = client
+                            _chroma_collection = collection
+                    except Exception:
+                        pass
+                _prewarm_done.set()
+                _warmup_stage = "done"
+                print(
+                    f"[diary-rag] Warmup timeout at {elapsed:.0f}s but model hot — proceeding.",
+                    file=sys.stderr,
+                    flush=True,
+                )
+            elif _warmup_restarts < MAX_WARMUP_RESTARTS:
+                _warmup_restarts += 1
+                _warmup_generation += 1
+                _warmup_error = None
+                _warmup_started_at = time.time()
+                _warmup_stage = "init"
+                gen = _warmup_generation
+                print(
+                    f"[diary-rag] Warmup timed out, restarting "
+                    f"({_warmup_restarts}/{MAX_WARMUP_RESTARTS}, gen={gen})...",
+                    file=sys.stderr,
+                    flush=True,
+                )
+                threading.Thread(
+                    target=_prewarm_background,
+                    daemon=True,
+                    kwargs={"generation": gen},
+                ).start()
+            else:
+                return [{
+                    "status": "error",
+                    "stage": _warmup_stage,
+                    "elapsed_s": round(elapsed, 1),
+                    "message": (
+                        f"预热超时（{_warmup_stage}阶段卡了{elapsed:.0f}秒）。"
+                        f"已重启{_warmup_restarts}次仍失败。"
+                        f"请检查 ONNX 文件、ChromaDB 数据和 MCP stderr 日志。"
+                    ),
+                }]
+
+        MODEL_FALLBACK_S = 10
+        CHROMADB_FALLBACK_S = 5
+        TOTAL_FALLBACK_S = MODEL_FALLBACK_S + CHROMADB_FALLBACK_S
+
+        if _warmup_stage == "model":
+            eta_s = max(MODEL_FALLBACK_S - elapsed, 1)
+        elif _warmup_stage == "chromadb":
+            eta_s = max(CHROMADB_FALLBACK_S - elapsed, 1)
+        else:
+            eta_s = max(TOTAL_FALLBACK_S - elapsed, 1)
+
+        return [{
+            "status": "warming_up",
+            "stage": _warmup_stage,
+            "elapsed_s": round(elapsed, 1),
+            "eta_s": round(eta_s, 1),
+            "message": (
+                f"后台预热中（{_warmup_stage}阶段，已过{elapsed:.0f}秒，"
+                f"预计还需{eta_s:.0f}秒）"
+            ),
+        }]
+
+    model = get_model()
+
+    query_vec = model.encode(
+        [query],
+        normalize_embeddings=True,
+        show_progress_bar=False,
+    )
+
+    global _chroma_client, _chroma_collection
+
+    needs_init = False
+    with _chroma_lock:
+        if _chroma_client is None:
+            needs_init = True
+
+    if needs_init:
+        import chromadb
+
+        new_client = chromadb.PersistentClient(path=config.CHROMA_DIR)
+        new_collection = new_client.get_collection(config.COLLECTION_NAME)
+        with _chroma_lock:
+            if _chroma_client is None:
+                _chroma_client = new_client
+                _chroma_collection = new_collection
+
+    with _chroma_lock:
+        collection = _chroma_collection
+
+    fetch_k = top_k * config.OVERSAMPLE_FACTOR
+    results = collection.query(
+        query_embeddings=[query_vec[0].tolist()],
+        n_results=fetch_k,
+    )
+
+    if not results["ids"] or not results["ids"][0]:
+        return []
+
+    seen_parents = set()
+    parent_ids = []
+    for meta in results["metadatas"][0]:
+        pid = meta["parent_id"]
+        if pid not in seen_parents and pid not in _returned_ids:
+            seen_parents.add(pid)
+            parent_ids.append(pid)
+            if len(parent_ids) >= top_k:
+                break
+
+    conn = sqlite3.connect(config.DB_PATH)
+    placeholders = ",".join(["?" for _ in parent_ids])
+    rows = conn.execute(
+        "SELECT id, date, title, block_type, char_count, content "
+        f"FROM parents WHERE id IN ({placeholders})",
+        parent_ids,
+    ).fetchall()
+    conn.close()
+
+    for pid in parent_ids:
+        _returned_ids.add(pid)
+
+    return [
+        {
+            "id": row[0],
+            "date": row[1] or "",
+            "title": row[2] or "",
+            "type": row[3],
+            "char_count": row[4],
+            "content": row[5],
+        }
+        for row in rows
+    ]
+
+
+def _prewarm_background(generation: int = 0) -> None:
+    """Eager-load the encoder and ChromaDB, then touch the index with a dummy query."""
+    global _chroma_client, _chroma_collection, _warmup_stage, _warmup_started_at
+    global _warmup_error, _warmup_model_done_at
+
+    t_start = time.time()
+    _warmup_started_at = t_start
+    _warmup_stage = "model"
+
+    print("[diary-rag] Background pre-warm started (ONNX + ChromaDB)...",
+          file=sys.stderr, flush=True)
+
+    t0 = time.time()
+    try:
+        get_model()
+    except Exception as exc:
+        _warmup_error = f"Model load failed: {exc}"
+        print(f"[diary-rag] Background model load failed: {exc}",
+              file=sys.stderr, flush=True)
+        return
+    t_model = time.time()
+    _warmup_model_done_at = t_model
+    _warmup_stage = "chromadb"
+    print(f"[diary-rag] Model loaded ({t_model - t0:.1f}s).",
+          file=sys.stderr, flush=True)
+
+    tc0 = time.time()
+    try:
+        import chromadb
+
+        client = chromadb.PersistentClient(path=config.CHROMA_DIR)
+        collection = client.get_collection(config.COLLECTION_NAME)
+        with _chroma_lock:
+            _chroma_client = client
+            _chroma_collection = collection
+
+        print(f"[diary-rag] ChromaDB ready ({time.time() - tc0:.1f}s).",
+              file=sys.stderr, flush=True)
+
+        # Force the HNSW index and vector pages into memory before the first
+        # real user query; otherwise the first search still pays disk I/O.
+        model = get_model()
+        warm_vec = model.encode(
+            ["预热"],
+            normalize_embeddings=True,
+            show_progress_bar=False,
+        )
+        collection.query(query_embeddings=[warm_vec[0].tolist()], n_results=1)
+        print("[diary-rag] ChromaDB index warmed via dummy query.",
+              file=sys.stderr, flush=True)
+    except Exception as exc:
+        print(f"[diary-rag] ChromaDB pre-load failed, will retry on first query: {exc}",
+              file=sys.stderr, flush=True)
+
+    if generation != _warmup_generation:
+        if _model is not None and _chroma_collection is not None:
+            _warmup_stage = "done"
+            _prewarm_done.set()
+        else:
+            print(f"[diary-rag] Stale warmup thread gen={generation} discarding.",
+                  file=sys.stderr, flush=True)
+        return
+
+    _warmup_stage = "done"
+    _prewarm_done.set()
+    print(f"[diary-rag] Pre-warm complete ({time.time() - t_start:.1f}s total).",
+          file=sys.stderr, flush=True)
+
+
+if __name__ == "__main__":
+    print("[diary-rag] MCP server starting...", file=sys.stderr, flush=True)
+    print(f"[diary-rag] ONNX: {config.ONNX_MODEL_PATH}", file=sys.stderr, flush=True)
+    print(f"[diary-rag] ChromaDB: {config.CHROMA_DIR}", file=sys.stderr, flush=True)
+    print(f"[diary-rag] SQLite: {config.DB_PATH}", file=sys.stderr, flush=True)
+    threading.Thread(
+        target=_prewarm_background,
+        kwargs={"generation": 0},
+        daemon=True,
+    ).start()
+    mcp.run(transport="stdio")

@@ -51,6 +51,8 @@ description: "End-of-session profile update after important counseling conversat
 
 目的：在现有快照基础上增量更新。如果相关档案已在当前上下文中，跳过文件读取。
 
+**并行读取**：以上 `last-update.md`、comprehensive overview、dim1/dim2/dim3 overview、`_interaction-chain-examples.md` 彼此无依赖，应在同一批并行发出。
+
 ### 第三步：回溯检测缺失的周期文件，逐级补写
 
 不依赖天数计算，而是检查已过去的周期是否已有对应文件。补写原则：**逐级向上，下级为源**。

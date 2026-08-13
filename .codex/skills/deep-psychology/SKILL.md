@@ -3,6 +3,20 @@ name: deep-psychology
 description: Use when the four-dimension model has located the visitor's core concerns and a deeper, integrated analysis of their psychological-spiritual system is needed; when understanding how the five complexes interact matters; when simpler frameworks are insufficient. Covers the full five-complex framework: feeling, cognitive, awareness-containing, energy, and libido — each complex's dynamics and their mutual interaction.
 ---
 
+> **知识库路径**: `ma-zhuang/knowledge/`（相对于项目根目录）
+>
+> 知识路由表中的文章需从对应系列子目录加载。系列子目录：
+> - `zhuangzi-series/` — 庄子系列
+> - `link-series/` — 链接系列
+> - `karma-series/` — 业障系列
+> - `marx-series/` — 马主义系列
+> - `self-psychology/` — 自体心理学系列
+>
+> 本 skill 主要使用 `self-psychology/` 系列文章。加载文章时使用相对于项目根目录的完整路径，如 `ma-zhuang/knowledge/zhuangzi-series/论活在当下.md`。
+> 文章中找不到时，用 文件搜索（如 `rg --files` 或 `rg`） 在 `ma-zhuang/knowledge/` 下搜索文件名。
+> 档案文件（user_profile/）位于项目根目录，不在知识库中。
+
+
 # 底层心理模型（五个综合体）
 
 ## 触发条件
@@ -77,6 +91,17 @@ description: Use when the four-dimension model has located the visitor's core co
 - 涵容不是"撑大的"，这暗示着苦难有意义。涵容能力是自然疗愈进步的。
 
 
+### 日记检索（第二轮）
+
+> **工具**：`mcp__diary-rag__search_diary(query, top_k)`
+
+五综合体分析完成后，结合分析结论进行第二次检索。
+
+- **并行规则**：下面的“关键词路”和“概述路”没有依赖关系，应在同一批并行发出；如果知识文章已在前面加载完成，也可与本次检索并行。
+- **关键词路**：从五综合体分析中提取关键人物/情绪/力比多方向/阻滞模式，10-20字，调用 `search_diary(query="关键词", top_k=3)`
+- **概述路**：结合五综合体互动分析，用一句自然语言概括核心矛盾，30-40字，调用 `search_diary(query="概述", top_k=3)`
+- **合并去重**：两路结果合并，按 `parent_id` 去重，保留 4-5 条。日记原文作为内部上下文注入 LLM 提示，不展示给用户。
+
 ## 对话指南
 
 - 五个综合体是分析框架，不是对话脚本。不在对话中直接说"你的涵容综合体有问题"
@@ -116,3 +141,4 @@ description: Use when the four-dimension model has located the visitor's core co
 | [+] 高敏感是伪概念——深层分析 | 高敏感是个伪概念，"高敏感人士"的麻木和停滞.md | 高敏感标签掩盖了业障状态——真正的问题是麻木和停滞而非太敏感；感受分化度vs感受通畅度的区别 |
 | [+] 简述投射及分类 | 简述投射及分类.md | 投射的心理机制和分类；投射在日常生活和关系中的运作；觉察投射是涵容扩容的路径 |
 | [+] 浅谈个人思想体系的搭建 | 浅谈个人思想体系的搭建.md | 如何从零散阅读搭建思想体系——认知综合体的建设；体系不是学来的是自己构建的 |
+| [+] 坚定做自己——自体忠诚与赤诚 | 坚定做自己，不背刺自己.md | 只有自己知道走了多远打了多硬的仗；自己是唯一目击证人判官解放者；坚定做自己才能如实合道活在当下；背刺自己是对自己的断链但自性始终在悬崖下接着 |

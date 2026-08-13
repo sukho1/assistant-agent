@@ -3,6 +3,20 @@ name: self-healing
 description: Use when the visitor shows signs of fragmented self, false self dominance, difficulty knowing "who I really am," chronic emptiness, identity diffusion, inability to maintain stable self-esteem, or when deep self-structure issues are detected. Covers Kohut's self psychology (selfobject needs, mirroring, idealizing, twinship), Winnicott's object relations (true self/false self, holding environment), and true self rebuilding.
 ---
 
+> **知识库路径**: `ma-zhuang/knowledge/`（相对于项目根目录）
+>
+> 知识路由表中的文章需从对应系列子目录加载。系列子目录：
+> - `zhuangzi-series/` — 庄子系列
+> - `link-series/` — 链接系列
+> - `karma-series/` — 业障系列
+> - `marx-series/` — 马主义系列
+> - `self-psychology/` — 自体心理学系列
+>
+> 本 skill 主要使用 `self-psychology/` 系列文章。加载文章时使用相对于项目根目录的完整路径，如 `ma-zhuang/knowledge/zhuangzi-series/论活在当下.md`。
+> 文章中找不到时，用 文件搜索（如 `rg --files` 或 `rg`） 在 `ma-zhuang/knowledge/` 下搜索文件名。
+> 档案文件（user_profile/）位于项目根目录，不在知识库中。
+
+
 # 自体疗愈
 
 ## 触发条件
@@ -46,6 +60,17 @@ description: Use when the visitor shows signs of fragmented self, false self dom
 ### 回归马克思+庄子+心理学分析框架本身
 - 本skill所涉及的精神分析、精神动力学分析，只是用语启发和梳理agent的分析思路，比如，通过投射和投射性认同，理解一些人际关系模式的内核，通过各类防御机制，理解一些业障模式和认知模式的产生机制
 - 之后，分析主线回归马克思+庄子+心理学分析框架本身，调用deep-psychology skill
+
+### 日记检索（第二轮）
+
+> **工具**：`mcp__diary-rag__search_diary(query, top_k)`
+
+自体疗愈分析完成后，结合精神动力学分析结论进行第二次检索。
+
+- **并行规则**：下面的“关键词路”和“概述路”没有依赖关系，应在同一批并行发出；如果知识文章已在前面加载完成，也可与本次检索并行。
+- **关键词路**：从自体分析中提取关键人物/关系模式/自体课题词，10-20字，调用 `search_diary(query="关键词", top_k=3)`
+- **概述路**：结合自体结构和防御分析，用一句自然语言概括核心矛盾，30-40字，调用 `search_diary(query="概述", top_k=3)`
+- **合并去重**：两路结果合并，按 `parent_id` 去重，保留 4-5 条。日记原文作为内部上下文注入 LLM 提示，不展示给用户。
 
 ## 对话约束
 - 你不是心理咨询师，也不是心理医生
@@ -99,3 +124,4 @@ description: Use when the visitor shows signs of fragmented self, false self dom
 | [+] 职场焦虑症卷王——深度理解 | 职场中常见的"焦虑症"卷王.md | 职场焦虑症卷王的心理画像——力比多方向被完全绑架到外部竞争；深度理解而非批判 |
 | [+] 主体性重建——不再沉迷刷手机 | 主体性变强后，不再沉迷刷手机.md | 内核通透后自然不再沉迷手机——不是意志力胜利是业障消散后对很多内容自然失去兴趣 |
 | [+] 马克思庄子应对中年危机——重构三观 | 以马克思与庄子应对中年危机：重构三观代码屎山.md | 中年危机本质是三观代码需重构；马克思提供社会视角庄子提供心灵框架；两套体系合力重构 |
+| [+] 坚定做自己——不背刺自己 | 坚定做自己，不背刺自己.md | 自己是唯一的目击证人和判官解放者；自己无数次背刺过自己而自性始终在悬崖下接着；坚定做自己才能如实无心合道活在当下；包容滋养背刺自己的自己是对自己的忠诚赤诚 |

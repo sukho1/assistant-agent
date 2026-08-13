@@ -104,6 +104,8 @@ description: "Import raw diary materials (docx/txt/md, local files or multi-file
 
 **框架复用规则（批量模式专属）**：diary-process 首次处理前调用 `Skill("profile-update")` 加载完整框架。此后若 counseling 和 profile-update 框架均在上下文中，后续块直接在当前框架下执行完整流程（事实→分析→五综合体→交互因果链），不重复调用 Skill 工具。仅当：分析深度跃迁（周→月/季/年）OR 距上次框架确认超 10 块 OR 用户中断后恢复，才重新调用 Skill 工具确认框架。**框架复用 ≠ 降低分析质量**——分析仍须含五综合体逐一描述 + 引用原文。
 
+**并行边界**：首次加载 counseling 与 profile-update 框架、读取当前块文件等只读操作若彼此无依赖，可并行；但逐块写入 profile 必须严格串行，且只能由 profile-update 完成。
+
 **每 5 块自审计（强制）**：每处理完 5 个块，暂停并逐条核查以下问题：
 1. 过去 5 块是否每块都完成了完整分析（五综合体逐一描述）？
 2. 过去 5 块的周期文件分析区是否有实质性内容（不是一句话）？

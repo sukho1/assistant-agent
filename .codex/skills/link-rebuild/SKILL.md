@@ -3,6 +3,20 @@ name: link-rebuild
 description: Use when the visitor shows signs of missing or damaged links in the five-element model, when they feel isolated or disconnected from self/others/society/nature/history/universe, when they express loneliness or "no one understands me," when they need to rebuild nourishing connections. Covers the six types of link objects, link vs entanglement diagnosis, small actionable steps, and awareness practice.
 ---
 
+> **知识库路径**: `ma-zhuang/knowledge/`（相对于项目根目录）
+>
+> 知识路由表中的文章需从对应系列子目录加载。系列子目录：
+> - `zhuangzi-series/` — 庄子系列
+> - `link-series/` — 链接系列
+> - `karma-series/` — 业障系列
+> - `marx-series/` — 马主义系列
+> - `self-psychology/` — 自体心理学系列
+>
+> 本 skill 主要使用 `link-series/` 系列文章。加载文章时使用相对于项目根目录的完整路径，如 `ma-zhuang/knowledge/zhuangzi-series/论活在当下.md`。
+> 文章中找不到时，用 文件搜索（如 `rg --files` 或 `rg`） 在 `ma-zhuang/knowledge/` 下搜索文件名。
+> 档案文件（user_profile/）位于项目根目录，不在知识库中。
+
+
 # 链接重建
 
 ## 触发条件
@@ -57,6 +71,17 @@ description: Use when the visitor shows signs of missing or damaged links in the
 2. 微行动：看一眼窗外的树、附近的花草、摸一摸叶子（大自然）
 3. 正反馈：每一次微小链接行为都在重建"我是可以链接的"信心
 - 收束正道：收束本身就是重新链接自己与世界。
+
+### 日记检索（第二轮）
+
+> **工具**：`mcp__diary-rag__search_diary(query, top_k)`
+
+链接诊断完成后，结合分析结论进行第二次检索。
+
+- **并行规则**：下面的“关键词路”和“概述路”没有依赖关系，应在同一批并行发出；如果知识文章已在前面加载完成，也可与本次检索并行。
+- **关键词路**：从链接诊断中提取关键人物/链接对象/断裂模式，10-20字，调用 `search_diary(query="关键词", top_k=3)`
+- **概述路**：结合链接断裂和恢复分析，用一句自然语言概括核心矛盾，30-40字，调用 `search_diary(query="概述", top_k=3)`
+- **合并去重**：两路结果合并，按 `parent_id` 去重，保留 4-5 条。日记原文作为内部上下文注入 LLM 提示，不展示给用户。
 
 ## 对话指南
 - 不把链接当任务：不是'你应该多社交、多运动'，是链接本就在运作，只需要看到它。
@@ -126,3 +151,4 @@ description: Use when the visitor shows signs of missing or damaged links in the
 | [+] 链接感受大自然为什么难 | 链接、感受大自然为什么难？.md | 链接大自然的障碍分析——为什么最简单的自然链接也会被杂念和业障打断；恢复与自然的朴素链接 |
 | [+] 中国网民Vs中国人民——放下舆论焦虑 | 中国网民和中国人民是不同的群体和阶级.md | 互联网舆论不等于社会真实——区分"网民"和"人民"有助于放下对网络舆论的焦虑和不必要的认同 |
 | [+] 县城体育场——体育是大链接 | 县城体育场打网球篮球是大链接.md | 体育不只是运动——是跟身体、他人、当下的深度链接；朴实体育场的疗愈力量 |
+| [+] 社交层级——一流超一流收束近道 | 社交：一流超一流收束近道，二流不入流耗散远道.md | 一流人收束极简业障清爽近道；不入流者维度复杂耗散远道——降维兼容是傲慢其实是升维被卷入业障；旺克线盈亏线；人才密度涌现；价值投资选择超一流躺赢 |

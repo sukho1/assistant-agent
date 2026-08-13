@@ -3,6 +3,20 @@ name: "profile-update"
 description: "End-of-session profile update after important counseling conversations, when the user requests it, or integration of historical material (year-end summaries, monthly sketches, retrospective analyses) into the profile system. Updates user_profile overview, dimension, and period files. Invoke whenever new diagnostic information, key events, or historical data needs to be written into the profile archive."
 ---
 
+> **知识库路径**: `ma-zhuang/knowledge/`（相对于项目根目录）
+>
+> 知识路由表中的文章需从对应系列子目录加载。系列子目录：
+> - `zhuangzi-series/` — 庄子系列
+> - `link-series/` — 链接系列
+> - `karma-series/` — 业障系列
+> - `marx-series/` — 马主义系列
+> - `self-psychology/` — 自体心理学系列
+>
+> 加载文章时使用相对于项目根目录的完整路径，如 `ma-zhuang/knowledge/zhuangzi-series/论活在当下.md`。
+> 文章中找不到时，用 文件搜索（如 `rg --files` 或 `rg`） 在 `ma-zhuang/knowledge/` 下搜索文件名。
+> 档案文件（user_profile/）位于项目根目录，不在知识库中。
+
+
 # 用户档案更新
 
 ## 触发条件
@@ -22,7 +36,7 @@ description: "End-of-session profile update after important counseling conversat
 
 ## 流程
 
-> **前置**: 凡涉及心理分析（周期文件分析区、overview 分析区、交互因果链合成），必须确保 counseling 框架已在当前上下文中。首次分析前通过 `Skill("counseling")` 加载；同一会话后续分析复用已加载框架。仅在以下情况重新确认：分析深度跃迁（周→月/季/年）、触及新的维度或交互因果链判断、距上次框架确认超过 10 块。若框架已不在上下文中，重新加载。详见底部"更新原则"。
+> **前置**: 凡涉及心理分析（周期文件分析区、overview 分析区、交互因果链合成），必须确保 counseling 框架已在当前上下文中。首次分析前通过 `读取并执行 .codex/skills/counseling/SKILL.md` 加载；同一会话后续分析复用已加载框架。仅在以下情况重新确认：分析深度跃迁（周→月/季/年）、触及新的维度或交互因果链判断、距上次框架确认超过 10 块。若框架已不在上下文中，重新加载。详见底部"更新原则"。
 
 ### 第一步：判断是否值得更新
 
@@ -36,6 +50,8 @@ description: "End-of-session profile update after important counseling conversat
 - 读 `_interaction-chain-examples.md` 了解跨时间结构性规律，用于指导交互因果链的判断
 
 目的：在现有快照基础上增量更新。如果相关档案已在当前上下文中，跳过文件读取。
+
+**并行读取**：以上 `last-update.md`、comprehensive overview、dim1/dim2/dim3 overview、`_interaction-chain-examples.md` 彼此无依赖，应在同一批并行发出。
 
 ### 第三步：回溯检测缺失的周期文件，逐级补写
 
@@ -193,7 +209,7 @@ description: "End-of-session profile update after important counseling conversat
 
 详细格式规范见 `_cycle-file-rules.md` 和 `_overview-templates.md`。
 
-> **工具提示**: 创建新周期文件时，Write 工具可能要求先 Read。若遇此限制，用 Bash `touch path` 创建空文件后 Read 再 Write。Bash heredoc 仅限创建新文件，更新已有文件必须 Edit。
+> **工具提示**: 创建新周期文件时，apply_patch 可能要求文件已存在。若遇此限制，先用 shell 创建空文件，再读取并编辑。shell heredoc 仅限创建新文件，更新已有文件必须使用 apply_patch。
 
 ## 更新原则
 

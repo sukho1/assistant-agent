@@ -1,0 +1,9 @@
+# Codex 版项目级配置
+# 对应 Claude 版 `.claude/settings.local.json` 中的项目运行偏好。
+# 注意：`.codex/config.toml` 仅在项目被标记为 trusted 时加载。
+
+# 默认在 workspace-write 沙箱中运行；只读工作区外的写入需另行审批。
+sandbox_mode = "workspace-write"
+
+# 需要升级权限、离开沙箱、或可能产生外部副作用时由 Codex 主动询问。
+approval_policy = "on-request"

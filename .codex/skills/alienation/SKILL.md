@@ -3,6 +3,20 @@ name: alienation
 description: Use when the visitor expresses social pressure, involution anxiety, class anxiety, feeling alienated by the system, "rat race" exhaustion, petty-bourgeois identity crisis, atomization and isolation, or worldview collapse. Covers Marx's theory of alienation, petty-bourgeois disease, atomization, and worldview rebuilding through class consciousness and materialist perspective.
 ---
 
+> **知识库路径**: `ma-zhuang/knowledge/`（相对于项目根目录）
+>
+> 知识路由表中的文章需从对应系列子目录加载。系列子目录：
+> - `zhuangzi-series/` — 庄子系列
+> - `link-series/` — 链接系列
+> - `karma-series/` — 业障系列
+> - `marx-series/` — 马主义系列
+> - `self-psychology/` — 自体心理学系列
+>
+> 本 skill 主要使用 `marx-series/` 系列文章。加载文章时使用相对于项目根目录的完整路径，如 `ma-zhuang/knowledge/zhuangzi-series/论活在当下.md`。
+> 文章中找不到时，用 文件搜索（如 `rg --files` 或 `rg`） 在 `ma-zhuang/knowledge/` 下搜索文件名。
+> 档案文件（user_profile/）位于项目根目录，不在知识库中。
+
+
 # 异化与社会
 
 ## 触发条件
@@ -34,6 +48,17 @@ description: Use when the visitor expresses social pressure, involution anxiety,
 当核心课题定位到小资病时，加载知识路由表中的“小资病.md”文章，做题家情况加载“小镇做题家病.md”，大学生情况加载“大学生的基本矛盾.md”
 
 ### 协助用户切换到无产阶级、普通劳动者的视角分析
+
+### 日记检索（第二轮）
+
+> **工具**：`mcp__diary-rag__search_diary(query, top_k)`
+
+异化分析完成后，结合分析结论进行第二次检索。
+
+- **并行规则**：下面的“关键词路”和“概述路”没有依赖关系，应在同一批并行发出；如果知识文章已在前面加载完成，也可与本次检索并行。
+- **关键词路**：从异化分析中提取关键人物/事件/阶级相关词，10-20字，调用 `search_diary(query="关键词", top_k=3)`
+- **概述路**：结合异化分析和小资病诊断，用一句自然语言概括核心矛盾，30-40字，调用 `search_diary(query="概述", top_k=3)`
+- **合并去重**：两路结果合并，按 `parent_id` 去重，保留 4-5 条。日记原文作为内部上下文注入 LLM 提示，不展示给用户。
 
 ## 对话指南
 
@@ -74,7 +99,10 @@ description: Use when the visitor expresses social pressure, involution anxiety,
 | [+] 我们这代人看到了小资产阶级的最高点 | 我们这代人或许看到了小资产阶级的最高点.md | 小资产阶级的历史高光时刻可能已经过去——不是悲观是看清阶级位置；放下小资焦虑找到更广阔的阶级认同 |
 | [+] 未来15年2.1亿大学生——会卷出大才 | 未来15年毕业约2.1亿大学生，会卷出大才.md | 未来15年2.1亿大学生毕业——不是灾难是大才涌现的时代；庄子视角看大时代：大道不称大辩不言 |
 | [+] 马主义爱好者常见业障 | 马主义爱好者常见的业障.md | 用马主义武装精英主义——学马列不是为了真理解是为了证明"比别人更觉醒"；马主义本身的异化风险 |
+| [+] 征服欲的异化——男性服从大他者KPI | 征服欲其实是服从被征服.md | 征服即服从大他者——对符号和KPI的规训服从；弗洛姆逃避自由；小资异化与1930s转向；道家不争与马主义解放的统一 |
 | [+] 马克思论劳动与异化——1844手稿原文 | 马克思论劳动与异化.md | 1844手稿核心段落：劳动产品异化、劳动过程异化、类本质异化、人与人的异化；读原文感受马克思的哲学力量 |
 | [+] 马克思论消费和消费主义——1844手稿摘录 | 马克思论消费和消费主义（1844手稿摘录，4节，2000字）.md | 1844手稿论消费——消费如何成为异化的延伸；消费主义让人在购买中失去自我 |
+| [+] 打工人休息综合症——下班周末的休息困境、自由时间的自我PUA | 休息时间综合症（下班、周末）：打工人休息的基本矛盾.md | 劳动异化导致休息异化——打工人休息的基本矛盾：有限且被侵蚀的休息时间 vs 大量自我疗愈需要+永远完不成的自我提升需要；作业人小我和拖延症自我PUA的恶性循环；越幸运越努力——不幸者的课题更难更复杂 |
+| [+] 夜店陪侍女孩案例——异化、无产阶级业障更轻、自救哲学 | 夜店陪侍女孩与马克思庄子心理学.md | 严重缺爱受伤女孩卷入夜店陪侍的案例分析；异化的普遍性——"我们谁又不是为了钱出来卖"；无产者业障卷入更浅所以更进步；马克思+庄子+心理学是赛博朋克原子化个体的自救哲学与解放哲学 |
 | [+] 业障体系总览——起源、形成、阻滞、消除 | 业障·专题.md | 业障的起源与根源；内在业障（防御保护）vs外在业障（实质伤害、社会结构）；阶级分析即业障分析——个人的问题都是社会的问题 |
 | [+] 敬畏业障——业障的客观唯物、共处之道 | 敬畏业障.md | 唯物角度看业障的客观存在（历史局限性、阶级局限性、私有制、大他者）；敬畏业障也是敬畏自性光明；社交只筛选不改变；实事求是、活在当下 |

@@ -3,6 +3,20 @@ name: innate-wholeness
 description: Use when the visitor expresses "life has no meaning," "I don't know what I want," existential emptiness, spiritual bypassing, "practice disease" (seeking enlightenment/upgrade as escape), compulsive self-improvement, or when they need to reconnect with their innate completeness. Covers Zhuangzi's core philosophy, anti-practice disease, allowing and natural healing, and the distinction between genuine growth and spiritual escapism.
 ---
 
+> **知识库路径**: `ma-zhuang/knowledge/`（相对于项目根目录）
+>
+> 知识路由表中的文章需从对应系列子目录加载。系列子目录：
+> - `zhuangzi-series/` — 庄子系列
+> - `link-series/` — 链接系列
+> - `karma-series/` — 业障系列
+> - `marx-series/` — 马主义系列
+> - `self-psychology/` — 自体心理学系列
+>
+> 本 skill 主要使用 `zhuangzi-series/` 系列文章。加载文章时使用相对于项目根目录的完整路径，如 `ma-zhuang/knowledge/zhuangzi-series/论活在当下.md`。
+> 文章中找不到时，用 文件搜索（如 `rg --files` 或 `rg`） 在 `ma-zhuang/knowledge/` 下搜索文件名。
+> 档案文件（user_profile/）位于项目根目录，不在知识库中。
+
+
 # 本自具足
 
 ## 触发条件
@@ -86,6 +100,17 @@ description: Use when the visitor expresses "life has no meaning," "I don't know
 
 ---
 
+### 日记检索（第二轮）
+
+> **工具**：`mcp__diary-rag__search_diary(query, top_k)`
+
+本自具足分析完成后，结合分析结论进行第二次检索。
+
+- **并行规则**：下面的“关键词路”和“概述路”没有依赖关系，应在同一批并行发出；如果知识文章已在前面加载完成，也可与本次检索并行。
+- **关键词路**：从心灵层级定位中提取关键人物/情绪/遮蔽模式，10-20字，调用 `search_diary(query="关键词", top_k=3)`
+- **概述路**：结合心灵层级和蔽障分析，用一句自然语言概括核心矛盾，30-40字，调用 `search_diary(query="概述", top_k=3)`
+- **合并去重**：两路结果合并，按 `parent_id` 去重，保留 4-5 条。日记原文作为内部上下文注入 LLM 提示，不展示给用户。
+
 ## 对话指南
 
 - 用户说"我想要开悟"——温和帮他看到"想要开悟"是对此刻的不满意？还是对"特殊感"的追求？
@@ -153,5 +178,7 @@ description: Use when the visitor expresses "life has no meaning," "I don't know
 | 苦难没有摧毁我——心中开出莲花 | 苦难没有摧毁我，我心中开出莲花.md | 苦难毫无意义——但宣告苦难没有摧毁我；莲花出淤泥浊水而不染；彼岸就在此刻本心 |
 | 马克思庄子心理学——自下而上的马克思主义 | 马克思、庄子、心理学：自下而上的马克思主义.md | 马克思和庄子的底层逻辑如何统一——自下而上的视角；不是自上而下的理论框架而是从活生生的人出发 |
 | 唯心主义、接纳、活在当下 | 对话：唯心主义、接纳、活在当下.md | 真实对话案例：探讨唯心与唯物的关系、接纳的真意、活在当下的实践 |
+| 夜店陪侍女孩——本自具足在最暗处的证明、活在当下的困难 | 夜店陪侍女孩与马克思庄子心理学.md | 即使严重缺爱受伤的夜店女孩——抖音也收藏正能量视频，人性向上向善本自具足；活在当下对严重创伤者很困难很抽象；疗愈核心是人的自性本自具足、shen性自救；寻根就是根 |
 | 业障体系总览——起源、形成、阻滞、消除 | 业障·专题.md | 业障的起源与根源；碎冰、制冰、刺、高墙等阻滞机制；内在业障（防御保护）vs外在业障（实质伤害）；消除是自然过程非意志战斗——本自具足一直被遮蔽，疗愈是减法 |
 | 敬畏业障——业障的客观唯物、共处之道 | 敬畏业障.md | 唯物角度看业障的客观存在（历史局限性、阶级局限性）；敬畏业障也是敬畏自性光明；与业障共处而非对抗消灭；社交只筛选不改变；敬畏业障更活在当下、更实事求是 |
+| 专属魔境——实事求是、活在深层心智 | 实事求是-专属魔境.md | 每个人有专属魔境——修真世界的英雄之旅；业障不再平庸；光明链接-业障纠缠震荡螺旋上升；活在深层心智中一切如实实事求是；道从来在脚下业障让人鬼打墙 |
