@@ -3,18 +3,7 @@ name: "counseling"
 description: "Use when the visitor begins a conversation, when comprehensive understanding of their situation is needed, or when determining which specific framework or sub-skill to route to. Covers the four-dimensional topic positioning model, underlying psychological model, routing to sub-skills, and core conversation principles."
 ---
 
-> **知识库路径**: `ma-zhuang/knowledge/`（相对于项目根目录）
->
-> 知识路由表中的文章需从对应系列子目录加载。系列子目录：
-> - `zhuangzi-series/` — 庄子系列
-> - `link-series/` — 链接系列
-> - `karma-series/` — 业障系列
-> - `marx-series/` — 马主义系列
-> - `self-psychology/` — 自体心理学系列
->
-> 加载文章时使用相对于项目根目录的完整路径，如 `ma-zhuang/knowledge/zhuangzi-series/论活在当下.md`。
-> 文章中找不到时，用 Glob 在 `ma-zhuang/knowledge/` 下搜索文件名。
-> 档案文件（user_profile/）位于项目根目录，不在知识库中。
+> 公共路径、检索与档案加载规则见项目根指令文件中的“公共文件与检索约定”。
 
 
 # 心灵咨询综合理解
@@ -55,6 +44,8 @@ description: "Use when the visitor begins a conversation, when comprehensive und
 
 输入分析(A+B+C+D) → 回应策略制定 → 四维+五综合体扫描 → 确定核心落脚点 → 调用对应子skill(不可仅靠counseling摘要版) → 子skill内加载至少1篇文章 → 形成初稿 → 输出前自检 → 输出用户。输出完成后，异步补写 trace——trace 不阻塞用户看到回应。
 
+**波次执行**：确定核心落脚点和目标子 skill 后，第 1 波同时发出“目标子 skill 读取 + 第一轮日记检索两路”；目标子 skill 就绪后，第 2 波同时发出“命中文章读取 + 第二轮日记检索两路”。同一波内不得逐个等待。
+
 **形成初稿**：子skill 分析完成、文章加载后，开始写回应初稿。初稿必须严格遵循第二步的回应策略和第一步的输入分析结果——回复方向、深度、结构、语气都要对齐。
 
 **内部扫描长度约束**：四维每维 2-3 句，五综合体每个综合体 2-3 句。扫描的目的是定位核心课题和路由方向，不是写分析报告。不要在中途展开"这说明……""这意味着……"式的推论长文。
@@ -75,7 +66,7 @@ description: "Use when the visitor begins a conversation, when comprehensive und
 若检查确认 `mcp__diary-rag__search_diary` 不在当前可用工具列表中，使用以下 Bash 回退。注意：回退仅作为最后手段——每轮日记检索前都应先确认 MCP 工具是否已恢复，不要因为上一轮用了回退就跳过本轮检查：
 
 ```bash
-HF_HUB_OFFLINE=1 python -c "import sys; sys.path.insert(0,'diary_rag'); from server import search_diary; import json; r=search_diary('QUERY', top_k=3); print(json.dumps(r, ensure_ascii=False))"
+pwsh -NoProfile -File diary_rag/run_search.ps1 -Query "QUERY" -TopK 3
 ```
 
 ### 日记检索（第一轮）
@@ -203,14 +194,14 @@ LLM 默认语感（人需成长升级、努力是好事、苦难有意义、接�
 
 当对话需要体系整体框架支撑时，加载以下文章。
 
-| 课题/信号 | 文章 | 摘要 |
-|-----------|------|------|
-| 体系整体介绍、用户问"马庄心理学是什么" | 我的马克思+庄子+心理学体系概述.md | 心理学为基座（自体心理学+力比多模型+底层五综合体），人本主义和存在主义为支柱，马克思和庄子为指导思想。涵盖开悟、活在当下、链接心理学、底层心理模型的完整体系框架 |
-|活在当下、如实、全然接纳等议题|论活在当下.md|心灵的终极课题，1.活在当下，a.看到、记录当下，允许痛苦、允许自己不能安住于当下，允许自己不能活在当下，b.做当下的小事i.轻松微小疗愈，ii.能量收束,c.链接 2.安住于当下，6.如实，顺应，实事求是|
-| 马主义对心理学的具体指导 | 马主义对心理学的指导作用.md | 个人的问题本质是社会问题，当代西方心理学的一些结构性问题|
-| 最底层的心理学模型 | 最底层的心理学模型.md | 五综合体框架完整展开：感受、认知、涵容、能量、力比多；本框架vs马斯洛需求层次；理解人心的底层操作系统 |
-| 业障体系总览——起源、形成、阻滞、消除 | 业障·专题.md | 业障的起源与根源；碎冰、制冰、刺、高墙等阻滞机制；内在业障（防御保护）vs外在业障（实质伤害）；消除是自然过程非意志战斗 |
-| 敬畏业障——业障的客观唯物、共处之道 | 敬畏业障.md | 唯物角度看业障的客观存在（历史局限性、阶级局限性）；敬畏业障也是敬畏自性光明；与业障共处而非对抗消灭；社交只筛选不改变；敬畏业障更活在当下、更实事求是 |
+| 课题/信号 | 文章 |
+|-----------|------|
+| 体系整体介绍、用户问"马庄心理学是什么" | 我的马克思+庄子+心理学体系概述.md |
+|活在当下、如实、全然接纳等议题|论活在当下.md|
+| 马主义对心理学的具体指导 | 马主义对心理学的指导作用.md |
+| 最底层的心理学模型 | 最底层的心理学模型.md |
+| 业障体系总览——起源、形成、阻滞、消除 | 业障·专题.md |
+| 敬畏业障——业障的客观唯物、共处之道 | 敬畏业障.md |
 
 ---
 

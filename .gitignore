@@ -10,6 +10,7 @@ Desktop.ini
 diary/
 diary_rag/data
 diary_rag/diary_articles
+diary_rag/.venv/
 user_profile/
 
 # Project specific

@@ -7,3 +7,14 @@ sandbox_mode = "workspace-write"
 
 # 需要升级权限、离开沙箱、或可能产生外部副作用时由 Codex 主动询问。
 approval_policy = "on-request"
+
+# Codex 不保证读取 Claude 的 .mcp.json，这里显式注册 diary-rag MCP。
+[mcp_servers.diary-rag]
+command = "pwsh"
+args = ["-NoProfile", "-File", "diary_rag/run_mcp.ps1"]
+startup_timeout_sec = 120
+
+[mcp_servers.diary-rag.env]
+HF_HUB_OFFLINE = "1"
+TQDM_DISABLE = "1"
+PYTHONIOENCODING = "utf-8"

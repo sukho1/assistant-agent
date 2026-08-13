@@ -3,18 +3,7 @@ name: "profile-update"
 description: "End-of-session profile update after important counseling conversations, when the user requests it, or integration of historical material (year-end summaries, monthly sketches, retrospective analyses) into the profile system. Updates user_profile overview, dimension, and period files. Invoke whenever new diagnostic information, key events, or historical data needs to be written into the profile archive."
 ---
 
-> **知识库路径**: `ma-zhuang/knowledge/`（相对于项目根目录）
->
-> 知识路由表中的文章需从对应系列子目录加载。系列子目录：
-> - `zhuangzi-series/` — 庄子系列
-> - `link-series/` — 链接系列
-> - `karma-series/` — 业障系列
-> - `marx-series/` — 马主义系列
-> - `self-psychology/` — 自体心理学系列
->
-> 加载文章时使用相对于项目根目录的完整路径，如 `ma-zhuang/knowledge/zhuangzi-series/论活在当下.md`。
-> 文章中找不到时，用 文件搜索（如 `rg --files` 或 `rg`） 在 `ma-zhuang/knowledge/` 下搜索文件名。
-> 档案文件（user_profile/）位于项目根目录，不在知识库中。
+> 公共路径、检索与档案加载规则见项目根指令文件中的“公共文件与检索约定”。
 
 
 # 用户档案更新
@@ -27,7 +16,32 @@ description: "End-of-session profile update after important counseling conversat
 2. **用户直接要求**：用户明确要求更新档案
 3. **历史材料整合**：用户提供年末总结、月度素描、回溯分析等历史材料，需写入档案系统
 
-日常闲聊不触发。如果材料中各部分内容不清楚具体时间，跟用户交流确认。
+日常闲聊不触发。**纯日记分享、无新诊断信息、无维度/综合体/关键事件变化、用户未要求归档时，直接跳过，不写任何档案文件、不更新 last-update.md。**
+
+如果材料中各部分内容不清楚具体时间，跟用户交流确认。
+
+## 快速跳过检查（每轮强制，先于一切读取）
+
+1. 本回复/本轮对话是否产生新的关键事件、新命名、维度或综合体变化？
+2. 用户是否明确要求更新档案？
+3. 是否存在未入档的历史材料需要整合？
+
+三项全否 → **不触发**，不读取档案、不写文件、不更新 last-update，直接结束。
+
+只有确认有实质变化，才进入下面的流程（读取 → 补写 → 传导 → overview → last-update）。
+
+## 延迟写入（强制）
+
+回复前不执行档案写入。确认触发后，只向 `ma-zhuang/pending/` 写登记文件：
+
+```markdown
+- profile范围: <要更新的文件清单>
+- 事实要点: <新增的关键事件/命名/变化，1-3 行>
+```
+
+实际的读取、补写、传导、overview、last-update 全部推迟到**下一次会话开始时**（pending flush 阶段）执行。
+
+若用户不再发消息，登记保留在 pending，下次会话自动补写；如需定时补写，配置线程唤醒/自动化。
 
 ## 工作目录
 

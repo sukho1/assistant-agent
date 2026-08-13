@@ -166,9 +166,4 @@ assistant-agent/
 
 ### 许可
 
-本项目采用双许可，按文件类型划分：
-
-- **程序结构**（`.claude/skills/*/SKILL.md`、`CLAUDE.md`、`README.md` 等）：[Apache 2.0](LICENSE)
-- **知识文章**（`knowledge/` 下所有 `.md` 文件）：[CC BY-NC-SA 4.0](knowledge/LICENSE)
-
-简记：代码和结构可以商用，要遵循Apache2.0。文章随便传，但不能拿去卖钱。
+本项目整体采用 [CC BY-NC-SA 4.0](LICENSE) 许可，覆盖全部代码、技能、文档、知识文章和日记处理代码。

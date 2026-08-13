@@ -1,8 +1,8 @@
 {
   "mcpServers": {
     "diary-rag": {
-      "command": "python",
-      "args": ["diary_rag/server.py"],
+      "command": "pwsh",
+      "args": ["-NoProfile", "-File", "diary_rag/run_mcp.ps1"],
       "timeout": 120000
     }
   }
