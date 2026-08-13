@@ -35,7 +35,13 @@ class OnnxEmbedder:
         self._np = np
         self._run_lock = threading.Lock()
 
-    def encode(self, texts, normalize_embeddings=True, show_progress_bar=False):
+    def encode(
+        self,
+        texts,
+        normalize_embeddings=True,
+        show_progress_bar=False,
+        batch_size=None,
+    ):
         np = self._np
         vectors = []
 
@@ -72,7 +78,7 @@ class OnnxEmbedder:
                     vector = vector / norm
             vectors.append(vector)
 
-        return vectors
+        return np.asarray(vectors, dtype=np.float32)
 
 
 # ── Singleton model + ChromaDB ──
@@ -175,6 +181,7 @@ mcp = FastMCP("diary-rag")
 def search_diary(query: str, top_k: int = 5) -> list:
     """Search diary entries by semantic similarity."""
     global _warmup_restarts, _warmup_started_at, _warmup_stage, _warmup_generation, _warmup_error
+    global _chroma_client, _chroma_collection
 
     if not _prewarm_done.is_set():
         elapsed = time.time() - _warmup_started_at if _warmup_started_at else 0
@@ -266,8 +273,6 @@ def search_diary(query: str, top_k: int = 5) -> list:
         normalize_embeddings=True,
         show_progress_bar=False,
     )
-
-    global _chroma_client, _chroma_collection
 
     needs_init = False
     with _chroma_lock:

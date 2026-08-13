@@ -5,7 +5,6 @@ import glob
 from typing import List
 
 import chromadb
-from sentence_transformers import SentenceTransformer
 
 import config
 
@@ -21,7 +20,7 @@ def load_child_chunks() -> List[dict]:
     return all_chunks
 
 
-def build_index(model: SentenceTransformer, chunks: List[dict], collection):
+def build_index(model, chunks: List[dict], collection):
     """Encode chunks in batches and store in ChromaDB."""
     batch_size = config.EMBED_BATCH_SIZE
     for i in range(0, len(chunks), batch_size):
@@ -53,12 +52,18 @@ def build_index(model: SentenceTransformer, chunks: List[dict], collection):
 
 
 if __name__ == '__main__':
-    print(f"Loading model: {config.EMBED_MODEL_NAME}...")
+    print("Loading embedding model...")
     try:
-        model = SentenceTransformer(config.EMBED_MODEL_NAME, local_files_only=True)
+        from server import _load_onnx_model
+        model = _load_onnx_model()
     except Exception:
-        print("Model not cached, downloading...")
-        model = SentenceTransformer(config.EMBED_MODEL_NAME)
+        from sentence_transformers import SentenceTransformer
+        print(f"ONNX unavailable, loading {config.EMBED_MODEL_NAME}...")
+        try:
+            model = SentenceTransformer(config.EMBED_MODEL_NAME, local_files_only=True)
+        except Exception:
+            print("Model not cached, downloading...")
+            model = SentenceTransformer(config.EMBED_MODEL_NAME)
 
     print("  Warming up...")
     model.encode(["预热"], normalize_embeddings=True, show_progress_bar=False)

@@ -21,7 +21,6 @@ class TestServerSearch:
         from server import search_diary, _model, _chroma_client, _chroma_collection, _prewarm_done
         import config
         import chromadb
-        from sentence_transformers import SentenceTransformer
 
         # Setup: temp ChromaDB + SQLite with test data
         original_chroma = config.CHROMA_DIR
@@ -57,7 +56,12 @@ class TestServerSearch:
                 metadata={"hnsw:space": "cosine"}
             )
 
-            model = SentenceTransformer(config.EMBED_MODEL_NAME)
+            try:
+                from server import _load_onnx_model
+                model = _load_onnx_model()
+            except Exception:
+                from sentence_transformers import SentenceTransformer
+                model = SentenceTransformer(config.EMBED_MODEL_NAME)
             text = "今天天气很好，出门散步。"
             embedding = model.encode(
                 [text],
