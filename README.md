@@ -33,15 +33,15 @@
 
 手动调用/trace skill，在对话后会输出分析过程，保存在~/trace文件夹下，常常也有启发。
 
-### DiaryRAG 版（assistant-agent-DiaryRAG 分支）
+### DiaryRAG 日记语义检索（已并入 master）
 
 ```bash
-git clone -b assistant-agent-DiaryRAG https://github.com/sukho1/assistant-agent.git
+git clone https://github.com/sukho1/assistant-agent.git
 ```
 
-此分支新增**日记语义检索 MCP 服务**。将你的日记（.docx）放入 `diary/` 目录后，Agent 可以语义搜索过往日记内容，用于对话中的回溯、分析、自我链接。
+master 已包含**日记语义检索 MCP 服务**。将你的日记（.docx）放入 `diary/` 目录后，Agent 可以语义搜索过往日记内容，用于对话中的回溯、分析、自我链接。
 
-与 master 不同，此分支需要预处理日记数据。以下指引可发给你的 Agent 执行：
+使用日记检索需要预处理日记数据。以下指引可发给你的 Agent 执行：
 
 ```text
 安装并配置 DiaryRAG 日记语义搜索：
@@ -115,7 +115,7 @@ git clone -b assistant-agent-DiaryRAG https://github.com/sukho1/assistant-agent.
 
 ### 下一步
 
-- DiaryRAG 日记语义搜索已上线（见 assistant-agent-DiaryRAG 分支），后续优化检索精度与性能
+- DiaryRAG 日记语义搜索已并入 master，后续优化检索精度与性能
 
 ---
 
@@ -155,7 +155,7 @@ assistant-agent/
 │   │   ├── self-psychology/           # 自体心理学
 │   │   └── zhuangzi-series/           # 庄子系列
 │   └── trace/                         # 分析输出
-├── diary_rag/                          # 日记语义搜索 MCP ** DiaryRAG 分支
+├── diary_rag/                          # 日记语义搜索 MCP（已并入 master）
 │   ├── server.py                       # MCP 服务入口
 │   ├── segment_l1.py                   # 预处理 L1
 │   ├── segment_l2.py                   # 预处理 L2
