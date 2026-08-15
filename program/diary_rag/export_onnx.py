@@ -4,7 +4,7 @@ Run once with current torch/transformers installed.  After exporting, the
 ONNX model + tokenizer serve as the runtime — torch/transformers are no
 longer needed in production.
 
-Output directory: diary_rag/data/bge-zh/
+Output directory: program/diary_rag/data/bge-zh/
   - model.onnx       BERT backbone (hidden_size=512, 4 layers)
   - tokenizer.json   HF fast tokenizer (includes BERT post-processing template)
 """

@@ -42,9 +42,9 @@ description: "Use when the visitor begins a conversation, when comprehensive und
 
 ### 第三步：四维扫描与子skill路由
 
-输入分析(A+B+C+D) → 回应策略制定 → 四维+五综合体扫描 → 确定核心落脚点 → 调用对应子skill(不可仅靠counseling摘要版) → 子skill内加载至少1篇文章 → 形成初稿 → 输出前自检 → 输出用户。输出完成后，异步补写 trace——trace 不阻塞用户看到回应。
+输入分析(A+B+C+D) → 回应策略制定 → 四维+五综合体扫描 → 确定核心落脚点 → 调用对应子skill(不可仅靠counseling摘要版) → 子skill内加载至少1篇文章 → 形成初稿 → 输出前自检 → 输出用户。trace/profile-update 的异步补写时机见根指令文件"工具调用波次"第 3 波。
 
-**波次执行**：确定核心落脚点和目标子 skill 后，第 1 波同时发出“目标子 skill 读取 + 第一轮日记检索两路”；目标子 skill 就绪后，第 2 波同时发出“命中文章读取 + 第二轮日记检索两路”。同一波内不得逐个等待。
+**波次执行**：第 0/1/2/3 波的组织方式见根指令文件"工具调用波次"，此处不重复。
 
 **形成初稿**：子skill 分析完成、文章加载后，开始写回应初稿。初稿必须严格遵循第二步的回应策略和第一步的输入分析结果——回复方向、深度、结构、语气都要对齐。
 
@@ -52,31 +52,9 @@ description: "Use when the visitor begins a conversation, when comprehensive und
 
 注意：多数用户只发一段话，不默认对方会继续回复。可用引导式对话，但不依赖它。
 
-### 日记检索工具说明
+### 日记检索（执行细节见根指令文件）
 
-**主路径（始终优先）**：MCP 工具 `mcp__diary-rag__search_diary(query, top_k)`
-
-此工具由 `.mcp.json` 中配置的 `diary-rag` MCP 服务器提供（实现：`diary_rag/server.py`，FastMCP stdio transport）。正常情况下此工具始终在可用工具列表中，直接调用即可。
-
-- **参数**：`query`（自然语言或关键词字符串）、`top_k`（返回父块数量，默认 5）
-- **返回**：`[{id, date, title, type, char_count, content}, ...]`，按语义相似度降序，会话内自动去重
-
-**回退路径（仅限 MCP 工具确实不可用时）**：
-
-若检查确认 `mcp__diary-rag__search_diary` 不在当前可用工具列表中，使用以下 Bash 回退。注意：回退仅作为最后手段——每轮日记检索前都应先确认 MCP 工具是否已恢复，不要因为上一轮用了回退就跳过本轮检查：
-
-```bash
-pwsh -NoProfile -File diary_rag/run_search.ps1 -Query "QUERY" -TopK 3
-```
-
-### 日记检索（第一轮）
-
-四维扫描和五综合体分析完成后，调用 MCP 工具 `mcp__diary-rag__search_diary` 检索相关日记记录作为内部上下文。
-
-- **关键词路**：从分析中提取核心关键词（人名/课题/模式），10-20字，调用 `mcp__diary-rag__search_diary(query="关键词", top_k=3)`
-- **概述路**：将当前对话的核心矛盾、主要课题概括为一句自然语言，30-40字，调用 `mcp__diary-rag__search_diary(query="概述", top_k=3)`
-- **合并去重**：两路结果合并（最多6条候选），按 `parent_id` 去重，保留 4-5 条。日记原文作为内部上下文注入后续子 skill 的 LLM 提示，不展示给用户（除非用户要求参考来源）。
-- **并行**：关键词路和概述路互不依赖，应**同时发出**两个 `mcp__diary-rag__search_diary` 调用（同一批次并行），节省往返延迟。
+日记检索主路径、Bash 回退、预热预检、两路检索的 query 撰写标准与合并去重规则，统一见根指令文件的“公共文件与检索约定”与“预加载”章节，此处不重复。
 
 ## 两个核心模型（内部扫描工具）
 
@@ -182,7 +160,7 @@ LLM 默认语感（人需成长升级、努力是好事、苦难有意义、接�
 
 ## 渐进加载规则
 - **上下文复用优先**：加载任何文件前，先检查是否已在当前会话上下文中。已在上下文的档案和文章直接引用，不重复读取。仅在上下文缺失该文件时才加载。
-- **启动时加载用户档案**：**同时并行加载** `user_profile/comprehensive/overview.md`、`four-dimensions/dim1-elements/overview.md`、`dim2-links/overview.md`、`dim3-karma/overview.md`（四份文件互不依赖，同一批次发出）。在此档案背景下展开本次分析。如果文件不存在则跳过对应文件。**子 skill 继承 counseling 已加载的全部档案，不重复读取。**
+- **启动时加载用户档案**：默认**只读** `user-data/user_profile/comprehensive/overview.md`（已含四维摘要、五综合体、心灵维、核心链、最近关键变化，覆盖 dim1/2/3 要点）。**仅当四维扫描定位核心维度且 comprehensive 中该维信息不足时**，才补读对应维度 overview（`four-dimensions/dim1-elements/overview.md`、`dim2-links/overview.md`、`dim3-karma/overview.md`）。如果文件不存在则跳过对应文件。**子 skill 继承 counseling 已加载的全部档案，不重复读取。**
 - **周记加载**：overview 已覆盖最近关键变化时不额外拉周记。仅当对话涉及近几日时序细节且 overview 中未记录时，按需加载当周周记（`comprehensive/weekly/` + 相关维度 `weekly/`）。文件不存在则跳过。
 - **月报/季报/年报加载**：深度分析场景下，若用户话题跨越数周、涉及较长时序轨迹，按需加载月报（`comprehensive/monthly/`）或季报（`comprehensive/quarterly/`）；涉及年度级回顾或重大人生转折时加载年报（`comprehensive/annual/`）。从近到远逐级加载——周→月→季→年，不必一次性全加。文件不存在则跳过。
 - **每次本skill被调用时，必须根据核心课题从知识路由表中选择至少1篇文章加载。**

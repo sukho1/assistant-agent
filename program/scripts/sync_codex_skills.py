@@ -13,7 +13,7 @@ import shutil
 from pathlib import Path
 
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent.parent.parent
 SOURCE = ROOT / ".claude" / "skills"
 DEST = ROOT / ".codex" / "skills"
 

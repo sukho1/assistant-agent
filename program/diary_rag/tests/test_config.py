@@ -12,7 +12,7 @@ def test_config_has_required_attrs():
 
     # Paths
     assert os.path.isabs(config.PROJECT_ROOT)
-    assert config.DIARY_DIR.endswith('diary')
+    assert config.DIARY_DIR.endswith(os.path.join('user-data', 'diary'))
     assert config.DATA_DIR.endswith('data')
     assert config.DB_PATH.endswith('diary.db')
     assert config.CHROMA_DIR.endswith('chroma')

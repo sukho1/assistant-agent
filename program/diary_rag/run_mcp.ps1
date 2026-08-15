@@ -10,7 +10,7 @@ if (Test-Path -LiteralPath $venvPython) {
 else {
     $cmd = Get-Command python -ErrorAction SilentlyContinue
     if ($null -eq $cmd) {
-        throw "Python was not found. Create diary_rag/.venv with: python -m venv diary_rag/.venv"
+        throw "Python was not found. Create program/diary_rag/.venv with: python -m venv program/diary_rag/.venv"
     }
     $python = $cmd.Source
 }

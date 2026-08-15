@@ -11,7 +11,7 @@ approval_policy = "on-request"
 # Codex 不保证读取 Claude 的 .mcp.json，这里显式注册 diary-rag MCP。
 [mcp_servers.diary-rag]
 command = "pwsh"
-args = ["-NoProfile", "-File", "diary_rag/run_mcp.ps1"]
+args = ["-NoProfile", "-File", "program/diary_rag/run_mcp.ps1"]
 startup_timeout_sec = 120
 
 [mcp_servers.diary-rag.env]
