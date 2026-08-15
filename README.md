@@ -16,7 +16,7 @@
 ### claude用户进入项目文件夹即可对话
 
 - 自动加载项目级的claude.md，并自动调用各skill
-- Skill 的唯一事实源是根目录 `.claude/skills/`；Codex 用户可直接读取根目录 `AGENTS.md`，`.codex/skills/` 由 `scripts/sync_codex_skills.py` 从 `.claude/skills/` 生成。
+- Skill 的唯一事实源是根目录 `.claude/skills/`；Codex 用户可直接读取根目录 `AGENTS.md`，`.codex/skills/` 由 `program/scripts/sync_codex_skills.py` 从 `.claude/skills/` 生成。
 
 ### 非claude用户，请输入以下指令：
 
@@ -39,7 +39,7 @@
 git clone https://github.com/sukho1/assistant-agent.git
 ```
 
-master 已包含**日记语义检索 MCP 服务**。将你的日记（.docx）放入 `diary/` 目录后，Agent 可以语义搜索过往日记内容，用于对话中的回溯、分析、自我链接。
+master 已包含**日记语义检索 MCP 服务**。将你的日记（.docx）放入 `user-data/diary/` 目录后，Agent 可以语义搜索过往日记内容，用于对话中的回溯、分析、自我链接。
 
 使用日记检索需要预处理日记数据。以下指引可发给你的 Agent 执行：
 
@@ -47,30 +47,30 @@ master 已包含**日记语义检索 MCP 服务**。将你的日记（.docx）�
 安装并配置 DiaryRAG 日记语义搜索：
 
 1. 安装 Python 依赖：
-   pip install -r diary_rag/requirements.txt
+   pip install -r program/diary_rag/requirements.txt
 
-2. 将日记文件（.docx 或其他格式）放入项目根目录下的 diary/ 文件夹
+2. 将日记文件（.docx 或其他格式）放入项目根目录下的 user-data/diary/ 文件夹
 
 3. 运行预处理流水线：
-   python diary_rag/segment_l1.py && python diary_rag/segment_l2.py && python diary_rag/index.py
+   python program/diary_rag/segment_l1.py && python program/diary_rag/segment_l2.py && python program/diary_rag/index.py
 
 4. 验证处理完整性并测试 MCP 搜索：
-   python diary_rag/verify.py
+   python program/diary_rag/verify.py
 
 5. MCP 配置文件 .mcp.json 已就绪，Agent 启动后即可使用 search_diary 工具。
    如需手动测试，运行：
-   python diary_rag/server.py
+   python program/diary_rag/server.py
 ```
 注：
 
 ### 预处理流水线说明：
 `segment_l1.py` 切分日记为父块（单日日记、单篇文章、单部分内容，100-2000字）→`segment_l2.py` 再切为子块（不大于300字）→`index.py` 用 BAAI/bge-small-zh-v1.5 模型向量化并写入 ChromaDB。首次运行 `index.py` 需联网下载嵌入模型（约 100MB），如遇下载失败可提前 `pip install sentence-transformers && python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('BAAI/bge-small-zh-v1.5')"` 手动缓存模型。
 
-### 预处理后的数据在 `diary_rag/data/` 下（已在 .gitignore 中排除），不提交到仓库。每次日记有新增或修改，重新执行第 3 步即可。
+### 预处理后的数据在 `program/diary_rag/data/` 下（已在 .gitignore 中排除），不提交到仓库。每次日记有新增或修改，重新执行第 3 步即可。
 
 ### 如果自己的日记文件非docx格式，如.md文件夹
 让自己的agent根据上述切分逻辑+预处理源代码，自己写程序进行切分chunk、并验证处理完整性，然后做chunk的向量存储索引，MCP的设置、MCP功能测试，E2E测试。
-自己在咨询时可以用/trace调用trace skill，查看ma-zhuang/trace记录，是否有检索日记的部分。如果没有，让agent排查可能的原因。
+自己在咨询时可以用/trace调用trace skill，查看user-data/trace记录，是否有检索日记的部分。如果没有，让agent排查可能的原因。
 向量模型默认用的是bge-small-zh-v1.5，有技术能力、电脑性能强的朋友，让Agent更换为BGE-M3等更强的模型。
 
 --- 
@@ -145,23 +145,24 @@ assistant-agent/
 │   ├── config.toml                       # Codex 项目配置
 │   ├── rules/default.rules                # Codex 权限规则
 │   └── skills/                            # 由 sync_codex_skills.py 生成
-├── scripts/
-│   └── sync_codex_skills.py               # 从 Claude skill 生成 Codex skill
-├── ma-zhuang/                          # 核心资产
-│   ├── knowledge/                     # 知识库文章
-│   │   ├── karma-series/              # 业障系列
-│   │   ├── link-series/               # 链接系列
-│   │   ├── marx-series/               # 马克思系列
-│   │   ├── self-psychology/           # 自体心理学
-│   │   └── zhuangzi-series/           # 庄子系列
-│   └── trace/                         # 分析输出
-├── diary_rag/                          # 日记语义搜索 MCP（已并入 master）
-│   ├── server.py                       # MCP 服务入口
-│   ├── segment_l1.py                   # 预处理 L1
-│   ├── segment_l2.py                   # 预处理 L2
-│   └── data/                           # 预处理数据（gitignore）
-├── diary/                             # 日记 *** 关键支撑
-└── user_profile/                      # 用户画像 *** 核心记忆
+├── program/                              # 程序与脚本
+│   ├── diary_rag/                        # 日记语义搜索 MCP（已并入 master）
+│   │   ├── server.py                     # MCP 服务入口
+│   │   ├── segment_l1.py                 # 预处理 L1
+│   │   ├── segment_l2.py                 # 预处理 L2
+│   │   └── data/                         # 预处理数据（gitignore）
+│   └── scripts/                          # 工具脚本
+│       └── sync_codex_skills.py          # 从 Claude skill 生成 Codex skill
+└── user-data/                            # 核心资产
+    ├── knowledge/                        # 知识库文章
+    │   ├── karma-series/                 # 业障系列
+    │   ├── link-series/                  # 链接系列
+    │   ├── marx-series/                  # 马克思系列
+    │   ├── self-psychology/              # 自体心理学
+    │   └── zhuangzi-series/              # 庄子系列
+    ├── trace/                            # 分析输出
+    ├── diary/                            # 日记 *** 关键支撑
+    └── user_profile/                     # 用户画像 *** 核心记忆
 ```
 
 ### 许可

@@ -1,6 +1,6 @@
 ---
 name: "profile-update"
-description: "End-of-session profile update after important counseling conversations, when the user requests it, or integration of historical material (year-end summaries, monthly sketches, retrospective analyses) into the profile system. Updates user_profile overview, dimension, and period files. Invoke whenever new diagnostic information, key events, or historical data needs to be written into the profile archive."
+description: "End-of-session profile update after important counseling conversations, when the user requests it, or integration of historical material (year-end summaries, monthly sketches, retrospective analyses) into the profile system. Updates user-data/user_profile overview, dimension, and period files. Invoke whenever new diagnostic information, key events, or historical data needs to be written into the profile archive."
 ---
 
 > 公共路径、检索与档案加载规则见项目根指令文件中的“公共文件与检索约定”。
@@ -20,8 +20,8 @@ description: "End-of-session profile update after important counseling conversat
 
 ## 工作目录
 
-用户档案位于 workspace 根目录下：`user_profile/`。以下所有档案路径均以此为根。
-避免错误：只搜了 ma-zhuang/user_profile/，就宣布该文件夹不存在
+用户档案位于 workspace 根目录下：`user-data/user_profile/`。以下所有档案路径均以此为根。
+避免错误：只搜了 user-data/user_profile/，就宣布该文件夹不存在
 
 ## 流程
 
@@ -33,8 +33,8 @@ description: "End-of-session profile update after important counseling conversat
 
 ### 第二步：加载现有档案
 
-- 读 `user_profile/last-update.md`，获取上次更新日期
-- 读 `user_profile/comprehensive/overview.md` 了解当前综合状态
+- 读 `user-data/user_profile/last-update.md`，获取上次更新日期
+- 读 `user-data/user_profile/comprehensive/overview.md` 了解当前综合状态
 - 按需读 dim1/dim2/dim3 的 overview 文件
 - 读 `_interaction-chain-examples.md` 了解跨时间结构性规律，用于指导交互因果链的判断
 

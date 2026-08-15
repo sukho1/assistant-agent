@@ -1,6 +1,6 @@
 ---
 name: "profile-update"
-description: "End-of-session profile update after important counseling conversations, when the user requests it, or integration of historical material (year-end summaries, monthly sketches, retrospective analyses) into the profile system. Updates user_profile overview, dimension, and period files. Invoke whenever new diagnostic information, key events, or historical data needs to be written into the profile archive."
+description: "End-of-session profile update after important counseling conversations, when the user requests it, or integration of historical material (year-end summaries, monthly sketches, retrospective analyses) into the profile system. Updates user-data/user_profile overview, dimension, and period files. Invoke whenever new diagnostic information, key events, or historical data needs to be written into the profile archive."
 ---
 
 > 公共路径、检索与档案加载规则见项目根指令文件中的“公共文件与检索约定”。
@@ -16,37 +16,12 @@ description: "End-of-session profile update after important counseling conversat
 2. **用户直接要求**：用户明确要求更新档案
 3. **历史材料整合**：用户提供年末总结、月度素描、回溯分析等历史材料，需写入档案系统
 
-日常闲聊不触发。**纯日记分享、无新诊断信息、无维度/综合体/关键事件变化、用户未要求归档时，直接跳过，不写任何档案文件、不更新 last-update.md。**
-
-如果材料中各部分内容不清楚具体时间，跟用户交流确认。
-
-## 快速跳过检查（每轮强制，先于一切读取）
-
-1. 本回复/本轮对话是否产生新的关键事件、新命名、维度或综合体变化？
-2. 用户是否明确要求更新档案？
-3. 是否存在未入档的历史材料需要整合？
-
-三项全否 → **不触发**，不读取档案、不写文件、不更新 last-update，直接结束。
-
-只有确认有实质变化，才进入下面的流程（读取 → 补写 → 传导 → overview → last-update）。
-
-## 延迟写入（强制）
-
-回复前不执行档案写入。确认触发后，只向 `ma-zhuang/pending/` 写登记文件：
-
-```markdown
-- profile范围: <要更新的文件清单>
-- 事实要点: <新增的关键事件/命名/变化，1-3 行>
-```
-
-实际的读取、补写、传导、overview、last-update 全部推迟到**下一次会话开始时**（pending flush 阶段）执行。
-
-若用户不再发消息，登记保留在 pending，下次会话自动补写；如需定时补写，配置线程唤醒/自动化。
+日常闲聊不触发。如果材料中各部分内容不清楚具体时间，跟用户交流确认。
 
 ## 工作目录
 
-用户档案位于 workspace 根目录下：`user_profile/`。以下所有档案路径均以此为根。
-避免错误：只搜了 ma-zhuang/user_profile/，就宣布该文件夹不存在
+用户档案位于 workspace 根目录下：`user-data/user_profile/`。以下所有档案路径均以此为根。
+避免错误：只搜了 user-data/user_profile/，就宣布该文件夹不存在
 
 ## 流程
 
@@ -58,8 +33,8 @@ description: "End-of-session profile update after important counseling conversat
 
 ### 第二步：加载现有档案
 
-- 读 `user_profile/last-update.md`，获取上次更新日期
-- 读 `user_profile/comprehensive/overview.md` 了解当前综合状态
+- 读 `user-data/user_profile/last-update.md`，获取上次更新日期
+- 读 `user-data/user_profile/comprehensive/overview.md` 了解当前综合状态
 - 按需读 dim1/dim2/dim3 的 overview 文件
 - 读 `_interaction-chain-examples.md` 了解跨时间结构性规律，用于指导交互因果链的判断
 

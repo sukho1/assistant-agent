@@ -13,7 +13,7 @@ description: "Import raw diary materials (docx/txt/md, local files or multi-file
 
 ## 工作目录
 
-原始文件保留在 `diary/`，处理中间产物在 `diary/_process/{材料名}/`。
+原始文件保留在 `user-data/diary/`，处理中间产物在 `user-data/diary/_process/{材料名}/`。
 
 ## 流程
 
@@ -29,7 +29,7 @@ description: "Import raw diary materials (docx/txt/md, local files or multi-file
    当前工具不可用则 `pip install` 或 `winget install` 安装，安装失败则尝试下一个。
 
 2. 图片 → `![desc](path)`，不处理图片语义
-3. 转换产物输出到 `diary/_process/{材料名}/`
+3. 转换产物输出到 `user-data/diary/_process/{材料名}/`
 
 4. **按周拆分（强制）**：转换后的 md 若超过 **2000 行**，必须以周为单位拆分为独立文件。拆分规则：
    - **优先**：扫描 `### M.D-M.D` 格式的周边界，每遇到一个周标题，将该周内容抽取为独立文件 `{材料名}_W{周号}.md`
@@ -93,9 +93,9 @@ description: "Import raw diary materials (docx/txt/md, local files or multi-file
 
 **硬规则——禁止抄近道**：
 - **逐块完成**：禁止把多个块攒在一起"批量写事实、事后统一分析"。每个块必须当场完成完整的 profile-update 流程
-- **禁止脚本化分析**：禁止用任何形式的脚本或批处理替代逐块的手动心理分析。包括但不限于：bash 循环生成分析文本、Python 调用 LLM 批量写分析区、模板填充式生成五综合体描述。分析必须经过 counseling skill 加载后的框架视角——脚本不可能加载 counseling 框架。**脚本可用于机械操作**：文件格式转换、编码转换、按标题边界拆分、字符统计——这些不涉及心理分析的操作，脚本是最优工具。写入 `user_profile/` 的周期文件永远不能通过脚本创建。
+- **禁止脚本化分析**：禁止用任何形式的脚本或批处理替代逐块的手动心理分析。包括但不限于：bash 循环生成分析文本、Python 调用 LLM 批量写分析区、模板填充式生成五综合体描述。分析必须经过 counseling skill 加载后的框架视角——脚本不可能加载 counseling 框架。**脚本可用于机械操作**：文件格式转换、编码转换、按标题边界拆分、字符统计——这些不涉及心理分析的操作，脚本是最优工具。写入 `user-data/user_profile/` 的周期文件永远不能通过脚本创建。
 - **禁止批量创建文件**：严禁用任何批处理方式（bash for 循环、heredoc、cat <<EOF、echo > 重定向、Python 文件操作等）一次性创建多个周期文件。一经发现，该批次所有文件视为无效壳子，需全部重做。**禁令原理：逐块调用 profile-update 是 diary-process 唯一的合规写入路径；任何批量创建 = 绕过了 counseling 加载 = 壳子文件**
-- **不越权**：禁止 diary-process agent 自行直接写 profile 文件。必须通过 `读取并执行 .codex/skills/profile-update/SKILL.md` 工具调用，由 profile-update skill 自行完成文件写入。diary-process 只做切分和送达，不越权做 profile-update 的工作。**每写入一个周期文件前自检：这个 写文件/编辑/shell 调用是我（diary-process agent）发出的，还是 profile-update skill 发出的？前者=违规。shell 写 user_profile/ 同样违规——不因工具不同而改变性质。**
+- **不越权**：禁止 diary-process agent 自行直接写 profile 文件。必须通过 `读取并执行 .codex/skills/profile-update/SKILL.md` 工具调用，由 profile-update skill 自行完成文件写入。diary-process 只做切分和送达，不越权做 profile-update 的工作。**每写入一个周期文件前自检：这个 写文件/编辑/shell 调用是我（diary-process agent）发出的，还是 profile-update skill 发出的？前者=违规。shell 写 user-data/user_profile/ 同样违规——不因工具不同而改变性质。**
 - **不干涉**：profile-update 内部自行处理周期合成（周→月→季→年）和向上传导，diary-process 不得干涉或跳过。diary-process 也不得代替 profile-update 做逐月检查点——那是 profile-update 第五步的职责
 
 - **禁止自行决定暂停执行。** 所有块处理完毕或用户明确要求暂停前，不间断执行。
@@ -126,14 +126,14 @@ description: "Import raw diary materials (docx/txt/md, local files or multi-file
 
 **最终验收**：
 1. `_processing-plan.md` 中全部项已打勾（且满足第三步的打勾标准）
-2. `user_profile/` 中目标时间范围的周期文件已生成（检查 `comprehensive/weekly/` 下文件覆盖目标区间）
+2. `user-data/user_profile/` 中目标时间范围的周期文件已生成（检查 `comprehensive/weekly/` 下文件覆盖目标区间）
 3. 处理计划中所有 `[文章]` 和 `[月度素描]` 项已处理（整合入对应周记/月记）
-4. `diary/_process/{材料名}/` 目录已清理（全量处理完成后删除）
+4. `user-data/diary/_process/{材料名}/` 目录已清理（全量处理完成后删除）
 
 ## 中间文件管理
 
 ```
-diary/
+user-data/diary/
 ├── 日记2023H1.docx              # 原始（永久保留）
 ├── _process/                     # gitignore
 │   └── 2023H1/                   # 完成后删除整个目录
@@ -145,7 +145,7 @@ diary/
 │       └── _processing-plan.md   # 处理计划（处理结束后删除）
 ```
 
-**全量处理完成后**，删除 `diary/_process/{材料名}/` 整个目录。仅保留原始 docx 文件在 `diary/` 下。
+**全量处理完成后**，删除 `user-data/diary/_process/{材料名}/` 整个目录。仅保留原始 docx 文件在 `user-data/diary/` 下。
 
 > Windows 清理: `rm -rf` 在 Windows 下偶发 "Device or resource busy"。降级方案：`rm -rf` 失败 → `rm -f` 逐文件 → `rmdir` 空目录。
 
@@ -161,4 +161,4 @@ diary/
 用户要求中断 → 当前项不标记完成。`_processing-plan.md` 已保存进度，下次继续。
 
 ### 断点恢复
-重新打开 session → 读 `diary/_process/{材料名}/_processing-plan.md`。文件不存在 → 新导入。文件存在 → 从"待处理"第一个 `[ ]` 继续，已打勾项不重复处理。
+重新打开 session → 读 `user-data/diary/_process/{材料名}/_processing-plan.md`。文件不存在 → 新导入。文件存在 → 从"待处理"第一个 `[ ]` 继续，已打勾项不重复处理。

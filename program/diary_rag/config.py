@@ -2,8 +2,9 @@
 import os
 
 # Paths
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DIARY_DIR = os.path.join(PROJECT_ROOT, "diary")
+# __file__ = <root>/program/diary_rag/config.py -> up 3 levels = repo root
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+DIARY_DIR = os.path.join(PROJECT_ROOT, "user-data", "diary")
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 CACHE_DIR = os.path.join(DATA_DIR, "cache")
 CHROMA_DIR = os.path.join(DATA_DIR, "chroma")

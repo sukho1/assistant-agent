@@ -2,7 +2,7 @@
   "mcpServers": {
     "diary-rag": {
       "command": "pwsh",
-      "args": ["-NoProfile", "-File", "diary_rag/run_mcp.ps1"],
+      "args": ["-NoProfile", "-File", "program/diary_rag/run_mcp.ps1"],
       "timeout": 120000
     }
   }

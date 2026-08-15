@@ -1,0 +1,12 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "diary-rag": {
+      "type": "local",
+      "command": ["pwsh", "-NoProfile", "-File", "program/diary_rag/run_mcp.ps1"],
+      "cwd": ".",
+      "enabled": true,
+      "timeout": 120000
+    }
+  }
+}

@@ -8,6 +8,7 @@ SentenceTransformer so the server still starts.
 
 from __future__ import annotations
 
+import contextlib
 import os
 import sqlite3
 import sys
@@ -17,6 +18,12 @@ from mcp.server.fastmcp import FastMCP
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import config
+
+# mcp 1.x Settings.lifespan 的泛型前向引用在 pydantic-settings 2.15 下会触发
+# IncompleteFieldDefinitionWarning；model_rebuild() 在实例化前解析注解，根治该警告。
+from mcp.server.fastmcp.server import Settings as _McpSettings
+
+_McpSettings.model_rebuild()
 
 # Keep network requests offline — model is pre-cached, no download fallback.
 os.environ.setdefault("HF_HUB_OFFLINE", "1")
@@ -102,6 +109,52 @@ _warmup_model_done_at: float | None = None
 _warmup_generation: int = 0
 
 
+def _open_chroma():
+    """Open the Chroma client and collection (call under _chroma_startup_lock)."""
+    import chromadb
+
+    client = chromadb.PersistentClient(path=config.CHROMA_DIR)
+    collection = client.get_collection(config.COLLECTION_NAME)
+    return client, collection
+
+
+@contextlib.contextmanager
+def _chroma_startup_lock():
+    """Serialize ChromaDB initialization across server processes.
+
+    Two servers (e.g. ZCode and Codex sessions) opening the same persistent
+    directory at once contend on the sqlite lock during startup, which was
+    observed to stretch the pre-warm from ~8s to 20s+. The lock is
+    best-effort: after a 30s deadline we proceed without it, and a stale lock
+    file (holder crashed) is reclaimed after 60s.
+    """
+    path = os.path.join(config.DATA_DIR, ".chroma-init.lock")
+    deadline = time.time() + 30
+    while True:
+        try:
+            fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            os.write(fd, str(os.getpid()).encode("ascii"))
+            os.close(fd)
+            break
+        except FileExistsError:
+            try:
+                if time.time() - os.path.getmtime(path) > 60:
+                    os.remove(path)
+                    continue
+            except OSError:
+                pass
+            if time.time() > deadline:
+                break
+            time.sleep(0.2)
+    try:
+        yield
+    finally:
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+
+
 def _load_onnx_model():
     """Load the exported BGE ONNX model and fast tokenizer.
 
@@ -183,88 +236,7 @@ def search_diary(query: str, top_k: int = 5) -> list:
     global _warmup_restarts, _warmup_started_at, _warmup_stage, _warmup_generation, _warmup_error
     global _chroma_client, _chroma_collection
 
-    if not _prewarm_done.is_set():
-        elapsed = time.time() - _warmup_started_at if _warmup_started_at else 0
-
-        if _warmup_error is not None:
-            return [{
-                "status": "error",
-                "stage": _warmup_stage,
-                "elapsed_s": round(elapsed, 1),
-                "message": f"预热失败: {_warmup_error}",
-            }]
-
-        if elapsed > WARMUP_TIMEOUT_S:
-            if _model is not None:
-                if _chroma_collection is None:
-                    try:
-                        import chromadb
-
-                        client = chromadb.PersistentClient(path=config.CHROMA_DIR)
-                        collection = client.get_collection(config.COLLECTION_NAME)
-                        with _chroma_lock:
-                            _chroma_client = client
-                            _chroma_collection = collection
-                    except Exception:
-                        pass
-                _prewarm_done.set()
-                _warmup_stage = "done"
-                print(
-                    f"[diary-rag] Warmup timeout at {elapsed:.0f}s but model hot — proceeding.",
-                    file=sys.stderr,
-                    flush=True,
-                )
-            elif _warmup_restarts < MAX_WARMUP_RESTARTS:
-                _warmup_restarts += 1
-                _warmup_generation += 1
-                _warmup_error = None
-                _warmup_started_at = time.time()
-                _warmup_stage = "init"
-                gen = _warmup_generation
-                print(
-                    f"[diary-rag] Warmup timed out, restarting "
-                    f"({_warmup_restarts}/{MAX_WARMUP_RESTARTS}, gen={gen})...",
-                    file=sys.stderr,
-                    flush=True,
-                )
-                threading.Thread(
-                    target=_prewarm_background,
-                    daemon=True,
-                    kwargs={"generation": gen},
-                ).start()
-            else:
-                return [{
-                    "status": "error",
-                    "stage": _warmup_stage,
-                    "elapsed_s": round(elapsed, 1),
-                    "message": (
-                        f"预热超时（{_warmup_stage}阶段卡了{elapsed:.0f}秒）。"
-                        f"已重启{_warmup_restarts}次仍失败。"
-                        f"请检查 ONNX 文件、ChromaDB 数据和 MCP stderr 日志。"
-                    ),
-                }]
-
-        MODEL_FALLBACK_S = 10
-        CHROMADB_FALLBACK_S = 5
-        TOTAL_FALLBACK_S = MODEL_FALLBACK_S + CHROMADB_FALLBACK_S
-
-        if _warmup_stage == "model":
-            eta_s = max(MODEL_FALLBACK_S - elapsed, 1)
-        elif _warmup_stage == "chromadb":
-            eta_s = max(CHROMADB_FALLBACK_S - elapsed, 1)
-        else:
-            eta_s = max(TOTAL_FALLBACK_S - elapsed, 1)
-
-        return [{
-            "status": "warming_up",
-            "stage": _warmup_stage,
-            "elapsed_s": round(elapsed, 1),
-            "eta_s": round(eta_s, 1),
-            "message": (
-                f"后台预热中（{_warmup_stage}阶段，已过{elapsed:.0f}秒，"
-                f"预计还需{eta_s:.0f}秒）"
-            ),
-        }]
+    t_start = time.perf_counter()
 
     model = get_model()
 
@@ -273,6 +245,7 @@ def search_diary(query: str, top_k: int = 5) -> list:
         normalize_embeddings=True,
         show_progress_bar=False,
     )
+    t_encode = time.perf_counter()
 
     needs_init = False
     with _chroma_lock:
@@ -280,14 +253,12 @@ def search_diary(query: str, top_k: int = 5) -> list:
             needs_init = True
 
     if needs_init:
-        import chromadb
-
-        new_client = chromadb.PersistentClient(path=config.CHROMA_DIR)
-        new_collection = new_client.get_collection(config.COLLECTION_NAME)
-        with _chroma_lock:
-            if _chroma_client is None:
-                _chroma_client = new_client
-                _chroma_collection = new_collection
+        with _chroma_startup_lock():
+            with _chroma_lock:
+                if _chroma_client is None:
+                    new_client, new_collection = _open_chroma()
+                    _chroma_client = new_client
+                    _chroma_collection = new_collection
 
     with _chroma_lock:
         collection = _chroma_collection
@@ -297,6 +268,7 @@ def search_diary(query: str, top_k: int = 5) -> list:
         query_embeddings=[query_vec[0].tolist()],
         n_results=fetch_k,
     )
+    t_chroma = time.perf_counter()
 
     if not results["ids"] or not results["ids"][0]:
         return []
@@ -319,9 +291,18 @@ def search_diary(query: str, top_k: int = 5) -> list:
         parent_ids,
     ).fetchall()
     conn.close()
+    t_sql = time.perf_counter()
 
     for pid in parent_ids:
         _returned_ids.add(pid)
+
+    print(
+        f"[diary-rag] query done in {t_sql - t_start:.3f}s "
+        f"(encode {t_encode - t_start:.3f}s, chroma {t_chroma - t_encode:.3f}s, "
+        f"sqlite {t_sql - t_chroma:.3f}s): {query[:40]!r}",
+        file=sys.stderr,
+        flush=True,
+    )
 
     return [
         {
@@ -364,10 +345,8 @@ def _prewarm_background(generation: int = 0) -> None:
 
     tc0 = time.time()
     try:
-        import chromadb
-
-        client = chromadb.PersistentClient(path=config.CHROMA_DIR)
-        collection = client.get_collection(config.COLLECTION_NAME)
+        with _chroma_startup_lock():
+            client, collection = _open_chroma()
         with _chroma_lock:
             _chroma_client = client
             _chroma_collection = collection
@@ -410,9 +389,22 @@ if __name__ == "__main__":
     print(f"[diary-rag] ONNX: {config.ONNX_MODEL_PATH}", file=sys.stderr, flush=True)
     print(f"[diary-rag] ChromaDB: {config.CHROMA_DIR}", file=sys.stderr, flush=True)
     print(f"[diary-rag] SQLite: {config.DB_PATH}", file=sys.stderr, flush=True)
+
+    # Import heavy libraries on the main thread before the stdio event loop
+    # starts; importing them from a worker thread (tool call or pre-warm)
+    # while the event loop is running hangs (observed: import numpy inside a
+    # tool call never returns). The pre-warm thread below therefore only uses
+    # already-imported modules. The SentenceTransformer fallback is the only
+    # other heavy import a thread could trigger, so import it up front when
+    # the ONNX files are missing.
+    import numpy  # noqa: F401
+    import onnxruntime  # noqa: F401
+    import tokenizers  # noqa: F401
+    import chromadb  # noqa: F401
+    if not (os.path.isfile(config.ONNX_MODEL_PATH) and os.path.isfile(config.TOKENIZER_PATH)):
+        import sentence_transformers  # noqa: F401
+
     threading.Thread(
-        target=_prewarm_background,
-        kwargs={"generation": 0},
-        daemon=True,
+        target=_prewarm_background, kwargs={"generation": 0}, daemon=True
     ).start()
     mcp.run(transport="stdio")

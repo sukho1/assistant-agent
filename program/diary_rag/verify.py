@@ -14,13 +14,13 @@ def verify():
     errors = []
     warn = []
 
-    # ── 0. Source coverage: every .docx in diary/ -> processed? ──
+    # ── 0. Source coverage: every .docx in user-data/diary/ -> processed? ──
     diary_root = config.DIARY_DIR
     docx_files = set(
         os.path.basename(f) for f in glob.glob(os.path.join(diary_root, "*.docx"))
     )
     if not docx_files:
-        print("  FAIL  diary/ has 0 .docx files")
+        print("  FAIL  user-data/diary/ has 0 .docx files")
         return False
 
     if not os.path.exists(config.DB_PATH):

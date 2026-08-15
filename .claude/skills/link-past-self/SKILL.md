@@ -3,16 +3,16 @@ name: link-past-self
 description: Use when the user wants to simulate a past version of themselves (specify a year), write a letter from a past self to the present self, have a dialogue with a past self, or understand how a past self would view current circumstances. Trigger phrases include "让XX年的我写信给现在", "跟过去的自己对话", "模拟XX年的我", "过去的自己会怎么看", "链接过去的自己". Pure profile-driven role-play using annual profile archives — does not load knowledge articles.
 ---
 
-> **档案路径**: `user_profile/`（相对于项目根目录）
+> **档案路径**: `user-data/user_profile/`（相对于项目根目录）
 >
 > 本 skill 加载用户档案而非知识库文章。每次执行时一次性加载目标年份全部档案：
-> - `user_profile/comprehensive/annual/YYYY.md` — 综合年记（角色扮演主素材，只用"用户事实"）
-> - `user_profile/four-dimensions/dim1-elements/annual/YYYY.md` — 五要素维度年记
-> - `user_profile/four-dimensions/dim2-links/annual/YYYY.md` — 链接维度年记
-> - `user_profile/four-dimensions/dim3-karma/annual/YYYY.md` — 业障维度年记
-> - `user_profile/comprehensive/overview.md` — 综合总览（四年弧线段落，理解该年在人生叙事中的位置）
+> - `user-data/user_profile/comprehensive/annual/YYYY.md` — 综合年记（角色扮演主素材，只用"用户事实"）
+> - `user-data/user_profile/four-dimensions/dim1-elements/annual/YYYY.md` — 五要素维度年记
+> - `user-data/user_profile/four-dimensions/dim2-links/annual/YYYY.md` — 链接维度年记
+> - `user-data/user_profile/four-dimensions/dim3-karma/annual/YYYY.md` — 业障维度年记
+> - `user-data/user_profile/comprehensive/overview.md` — 综合总览（四年弧线段落，理解该年在人生叙事中的位置）
 >
-> 不加载 `ma-zhuang/knowledge/` 下的任何知识文章。档案驱动角色扮演，不是框架驱动分析。
+> 不加载 `user-data/knowledge/` 下的任何知识文章。档案驱动角色扮演，不是框架驱动分析。
 
 # 链接过去的自己
 
@@ -37,16 +37,16 @@ description: Use when the user wants to simulate a past version of themselves (s
 
 一次性加载目标年份的全部档案（不分优先级）：
 
-1. `user_profile/comprehensive/annual/YYYY.md`
-2. `user_profile/four-dimensions/dim1-elements/annual/YYYY.md`
-3. `user_profile/four-dimensions/dim2-links/annual/YYYY.md`
-4. `user_profile/four-dimensions/dim3-karma/annual/YYYY.md`
-5. `user_profile/comprehensive/overview.md`（只取"四年弧线"段落，理解该年在整个人生叙事中的位置）
+1. `user-data/user_profile/comprehensive/annual/YYYY.md`
+2. `user-data/user_profile/four-dimensions/dim1-elements/annual/YYYY.md`
+3. `user-data/user_profile/four-dimensions/dim2-links/annual/YYYY.md`
+4. `user-data/user_profile/four-dimensions/dim3-karma/annual/YYYY.md`
+5. `user-data/user_profile/comprehensive/overview.md`（只取"四年弧线"段落，理解该年在整个人生叙事中的位置）
 
 **关键规则：只用"用户事实"部分。** 年记文件的"Agent 分析"部分是后来的自己用成熟框架回顾时写的——框架、命名、回顾性判断——这些都是过去的自己不应该知道的后见之明。角色扮演只需用户事实部分（事件、情绪、隐喻、原话）。
 
 **明确不加载**：
-- 不加载任何 `ma-zhuang/knowledge/` 下的知识文章
+- 不加载任何 `user-data/knowledge/` 下的知识文章
 - 不加载目标年份之后的年记/月记/周记（过去的自己不知道未来）
 
 ## 角色扮演规则
@@ -119,7 +119,7 @@ description: Use when the user wants to simulate a past version of themselves (s
 
 ```
 ---
-加载档案：user_profile/comprehensive/annual/YYYY.md + dim1/dim2/dim3 维度年记
+加载档案：user-data/user_profile/comprehensive/annual/YYYY.md + dim1/dim2/dim3 维度年记
 当前消息：[用户当前日记/消息摘要]
 ```
 

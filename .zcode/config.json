@@ -1,0 +1,11 @@
+{
+  "mcp": {
+    "servers": {
+      "diary-rag": {
+        "command": "pwsh",
+        "args": ["-NoProfile", "-File", "program/diary_rag/run_mcp.ps1"],
+        "timeoutMs": 120000
+      }
+    }
+  }
+}

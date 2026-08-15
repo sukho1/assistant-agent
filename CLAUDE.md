@@ -53,22 +53,22 @@
 - **是** → A 类，按上方 @import 常驻的 counseling 框架执行完整流程，不再重复调用 `Skill("counseling")`。
 - **否**（纯信息交流：IT 技术、日常技巧、事实查询、简单问候等）→ B 类，直接回复，不需调 skill。
 - **拿不准** → 一律算 A 类。
-- **日记目录缺失即跳过**：若项目根目录不存在 `diary/` 文件夹，则跳过所有日记检索/日记分析步骤，其余流程照常执行。
+- **日记目录缺失即跳过**：若项目根目录不存在 `user-data/diary/` 文件夹，则跳过所有日记检索/日记分析步骤，其余流程照常执行。
 
 **重要区分——"执行 counseling 流程"与"读取文件"是两件事**：
 - **counseling 流程（不可跳过）**：A 类消息的**每一轮**都必须完整执行 counseling 分析流水线（输入分析→策略→四维扫描→子skill路由→日记检索→输出自检）。即便是同一会话的第 2、3、N 轮，这条路径每轮必走，不可因"之前执行过"而省略。框架已通过 @import 常驻加载，直接引用即可。
 - **文件读取（可复用）**：skill 文件、知识库文章、用户档案如果在当前上下文窗口中已存在，不必重复 Read()——直接引用上下文中的内容即可。但这不影响 Skill 调用的强制性。
 
-skill 在项目根 `.claude/skills/` 下。知识库在 `ma-zhuang/knowledge/` 下。
+skill 在项目根 `.claude/skills/` 下。知识库在 `user-data/knowledge/` 下。
 
 ## 公共文件与检索约定
 
 - 知识库系列目录：`zhuangzi-series/`、`link-series/`、`karma-series/`、`marx-series/`、`self-psychology/`。
 - 加载文章时使用项目根相对完整路径；找不到时用 `rg --files` / `rg` 搜索文件名。
-- 档案在 `user_profile/`，不属于知识库；默认并行读 comprehensive overview 与 dim1/dim2/dim3 overview，按需周→月→季→年逐级补加载。
+- 档案在 `user-data/user_profile/`，不属于知识库；默认并行读 comprehensive overview 与 dim1/dim2/dim3 overview，按需周→月→季→年逐级补加载。
 - 子 skill 继承 counseling 已加载的档案、文章和框架，不重复读取。
 - 每个子 skill 每次调用必须从其知识路由表选择至少 1 篇文章加载；优先最高匹配 1 篇，跨维度可 2–3 篇交叉参照。
-- 日记检索主路径为 `mcp__diary-rag__search_diary`；无 `diary/` 目录则整体跳过。关键词路与概述路并行，结果按 `parent_id` 去重后保留 4–5 条。
+- 日记检索主路径为 `mcp__diary-rag__search_diary`；无 `user-data/diary/` 目录则整体跳过。两路检索并行：关键词路（核心关键词，10-20 字，top_k=3）与概述路（核心矛盾概述，30-40 字，top_k=3），结果按 `parent_id` 去重后保留 4–5 条。
 
 ## 并行与上下文复用规则
 
@@ -104,7 +104,7 @@ skill 在项目根 `.claude/skills/` 下。知识库在 `ma-zhuang/knowledge/` �
 
 本项目配置了 `diary-rag` MCP 服务器（`.mcp.json`），提供 `mcp__diary-rag__search_diary(query, top_k)` 工具，可语义搜索 8 年+日记内容。
 
-- 日记检索的完整流程见 `Skill("counseling")` 中的"日记检索工具说明"和"日记检索（第一轮/第二轮）"。
+- 日记检索的两路 query 撰写标准与合并去重规则见上文"公共文件与检索约定"；预热检查、warming_up/error 处理与 Bash 回退场景见下文"日记语义检索"。
 - **始终优先使用 MCP 工具** `mcp__diary-rag__search_diary`。每次对话开始时确认该工具在可用工具列表中。若在列表中就通过 MCP 调用——不要自行编写 Python 代码替代。
 - **尽早触发预热检查**：counseling 被调用、确认 MCP 工具在列表后，尽早发一次单路 `search_diary("预检", top_k=1)`——可与档案读取并行，不阻塞。目的是尽早确认预热状态，让后台线程有尽可能多的时间完成预热，减少后续步骤等待。
 - **MCP 返回 warming_up 时**：`eta_s` 已由服务端动态计算（ONNX 快路径通常 1–3s；缺少 ONNX 依赖时回退 PyTorch，冷启动 Defender 扫描下 model 阶段 ≈ 50s）。用 `eta_s` 作为等待秒数重试 MCP，min(eta_s+3, 15)s 防抖。重试后 `elapsed_s` 在涨说明预热推进中，正常 1-2 次重试命中。
@@ -113,7 +113,7 @@ skill 在项目根 `.claude/skills/` 下。知识库在 `ma-zhuang/knowledge/` �
 
 ### 日记 MCP 热加载
 
-`.mcp.json` 配置了 `python diary_rag/server.py`，Claude Code 在会话启动时将其作为子进程拉起。进程启动后，`server.py` 立即在后台线程中加载 ONNX embedding 模型（BAAI/bge-small-zh-v1.5，快路径约 1–3s；缺少 ONNX 依赖时回退 PyTorch，冷启动约 45–50s）和 ChromaDB（约 5s），同时 MCP 握手在 2 秒内完成。
+`.mcp.json` 配置了 `pwsh -NoProfile -File program/diary_rag/run_mcp.ps1`，Claude Code 在会话启动时将其作为子进程拉起（脚本内部启动 `server.py`）。进程启动后，`server.py` 立即在后台线程中加载 ONNX embedding 模型（BAAI/bge-small-zh-v1.5，快路径约 1–3s；缺少 ONNX 依赖时回退 PyTorch，冷启动约 45–50s）和 ChromaDB（约 5s），同时 MCP 握手在 2 秒内完成。
 
 后续 `mcp__diary-rag__search_diary` 工具调用都在**同一个进程**内执行，直接读取后台线程已加载好的全局变量，无需等待。
 
