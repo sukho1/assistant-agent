@@ -12,7 +12,7 @@ description: Use when the user wants to simulate a past version of themselves (s
 > - `user-data/user_profile/four-dimensions/dim3-karma/annual/YYYY.md` — 业障维度年记
 > - `user-data/user_profile/comprehensive/overview.md` — 综合总览（四年弧线段落，理解该年在人生叙事中的位置）
 >
-> 不加载 `user-data/knowledge/` 下的任何知识文章。档案驱动角色扮演，不是框架驱动分析。
+> 不加载 `knowledge/` 下的任何知识文章。档案驱动角色扮演，不是框架驱动分析。
 
 # 链接过去的自己
 
@@ -46,7 +46,7 @@ description: Use when the user wants to simulate a past version of themselves (s
 **关键规则：只用"用户事实"部分。** 年记文件的"Agent 分析"部分是后来的自己用成熟框架回顾时写的——框架、命名、回顾性判断——这些都是过去的自己不应该知道的后见之明。角色扮演只需用户事实部分（事件、情绪、隐喻、原话）。
 
 **明确不加载**：
-- 不加载任何 `user-data/knowledge/` 下的知识文章
+- 不加载任何 `knowledge/` 下的知识文章
 - 不加载目标年份之后的年记/月记/周记（过去的自己不知道未来）
 
 ## 角色扮演规则
