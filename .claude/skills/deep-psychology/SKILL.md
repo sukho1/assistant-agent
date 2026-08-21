@@ -82,7 +82,7 @@ description: Use when the four-dimension model has located the visitor's core co
 
 ### 日记检索（第二轮）
 
-五综合体分析完成后，结合分析结论执行第二轮检索（路数与合并去重规则见根指令文件“公共文件与检索约定”）。
+五综合体分析完成后，结合分析结论执行第二轮检索（两轮两路、top_k 与返回格式见 counseling 框架“日记检索”章节）。
 
 ## 对话指南
 
@@ -90,7 +90,7 @@ description: Use when the four-dimension model has located the visitor's core co
 - 用日常语言与用户交流框架产生的洞见
 
 ## 渐进加载规则
-- 按根指令文件中的“公共文件与检索约定”执行上下文复用、档案继承和逐级加载；本 skill 每次调用必须从下方路由表选择至少 1 篇文章加载。
+- 按根指令文件中的“公共文件与检索约定”执行上下文复用、档案继承和逐级加载；本 skill 每次调用必须从下方路由表选择至少 2 篇文章加载。
 - 本模块文章跨系列（self-psychology + zhuangzi-series + marx-series），加载时注意路径
 
 ## 知识路由表 — 底层心理模型 (deep-psychology)

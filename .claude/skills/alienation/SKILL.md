@@ -40,7 +40,7 @@ description: Use when the visitor expresses social pressure, involution anxiety,
 
 ### 日记检索（第二轮）
 
-异化分析完成后，结合分析结论执行第二轮检索（路数与合并去重规则见根指令文件“公共文件与检索约定”）。
+异化分析完成后，结合分析结论执行第二轮检索（两轮两路、top_k 与返回格式见 counseling 框架“日记检索”章节）。
 
 ## 对话指南
 
@@ -51,7 +51,7 @@ description: Use when the visitor expresses social pressure, involution anxiety,
 - 年轻人不是自暴自弃才毁掉前途，是看到自己没有前途才自暴自弃——这是对"年轻人懒惰"叙事的直接反驳 
 
 ## 渐进加载规则
-- 按根指令文件中的“公共文件与检索约定”执行上下文复用、档案继承和逐级加载；本 skill 每次调用必须从下方路由表选择至少 1 篇文章加载。
+- 按根指令文件中的“公共文件与检索约定”执行上下文复用、档案继承和逐级加载；本 skill 每次调用必须从下方路由表选择至少 2 篇文章加载。
 
 ## 知识路由表 — 异化与社会 (marx-series)
 
@@ -81,3 +81,6 @@ description: Use when the visitor expresses social pressure, involution anxiety,
 | [+] 马克思论消费和消费主义——1844手稿摘录 | 马克思论消费和消费主义(1844手稿摘录，4节，2000字).md |
 | [+] 业障体系总览——起源、形成、阻滞、消除 | 业障·专题.md |
 | [+] 敬畏业障——业障的客观唯物、共处之道 | 敬畏业障.md |
+| | 打工人休息的基本矛盾——休息时间综合症 | 休息时间综合症（下班、周末）：打工人休息的基本矛盾.md |
+
+| 边缘人群的深层业障——夜店陪侍女孩案例 | 夜店陪侍女孩与马克思庄子心理学.md |

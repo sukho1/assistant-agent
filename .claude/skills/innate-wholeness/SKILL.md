@@ -91,7 +91,7 @@ description: Use when the visitor expresses "life has no meaning," "I don't know
 
 ### 日记检索（第二轮）
 
-本自具足分析完成后，结合分析结论执行第二轮检索（路数与合并去重规则见根指令文件“公共文件与检索约定”）。
+本自具足分析完成后，结合分析结论执行第二轮检索（两轮两路、top_k 与返回格式见 counseling 框架“日记检索”章节）。
 
 ## 对话指南
 
@@ -103,7 +103,7 @@ description: Use when the visitor expresses "life has no meaning," "I don't know
 ---
 
 ## 渐进加载规则
-- 按根指令文件中的“公共文件与检索约定”执行上下文复用、档案继承和逐级加载；本 skill 每次调用必须从下方路由表选择至少 1 篇文章加载。
+- 按根指令文件中的“公共文件与检索约定”执行上下文复用、档案继承和逐级加载；本 skill 每次调用必须从下方路由表选择至少 2 篇文章加载。
 
 ## 知识路由表 — 本自具足 (zhuangzi-series)
 
@@ -157,3 +157,6 @@ description: Use when the visitor expresses "life has no meaning," "I don't know
 | 唯心主义、接纳、活在当下 | 对话-唯心主义、接纳、活在当下.md |
 | 业障体系总览——起源、形成、阻滞、消除 | 业障·专题.md |
 | 敬畏业障——业障的客观唯物、共处之道 | 敬畏业障.md |
+| | 顺其自然的落脚点——问题-答案自然浮现 | 自然而然-问题-答案循环.md |
+
+| 见自性、识别自性 | 见自性：识别自性.md |

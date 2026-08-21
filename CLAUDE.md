@@ -56,7 +56,7 @@
 - **日记目录缺失即跳过**：若项目根目录不存在 `user-data/diary/` 文件夹，则跳过所有日记检索/日记分析步骤，其余流程照常执行。
 
 **重要区分——"执行 counseling 流程"与"读取文件"是两件事**：
-- **counseling 流程（不可跳过）**：A 类消息的**每一轮**都必须完整执行 counseling 分析流水线（输入分析→策略→四维扫描→子skill路由→日记检索→输出自检）。即便是同一会话的第 2、3、N 轮，这条路径每轮必走，不可因"之前执行过"而省略。框架已通过 @import 常驻加载，直接引用即可。
+- **counseling 流程（不可跳过）**：A 类消息的**每一轮**都必须完整执行 counseling 分析流水线（输入分析→策略→四维扫描→子skill路由→日记检索→输出自检）。即便是同一会话的第 2、3、N 轮，这条路径每轮必走，不可因"之前执行过"而省略。**特别注意：不得把"上下文复用/文件不重读"误用为"子 skill 流程可跳过"——复用只管文件读取，流程永远不可跳过。**框架已通过 @import 常驻加载，直接引用即可。
 - **文件读取（可复用）**：skill 文件、知识库文章、用户档案如果在当前上下文窗口中已存在，不必重复 Read()——直接引用上下文中的内容即可。但这不影响 Skill 调用的强制性。
 
 skill 在项目根 `.claude/skills/` 下。知识库在 `user-data/knowledge/` 下。
@@ -67,8 +67,8 @@ skill 在项目根 `.claude/skills/` 下。知识库在 `user-data/knowledge/` �
 - 加载文章时使用项目根相对完整路径；找不到时用 `rg --files` / `rg` 搜索文件名。
 - 档案在 `user-data/user_profile/`，不属于知识库；默认并行读 comprehensive overview 与 dim1/dim2/dim3 overview，按需周→月→季→年逐级补加载。
 - 子 skill 继承 counseling 已加载的档案、文章和框架，不重复读取。
-- 每个子 skill 每次调用必须从其知识路由表选择至少 1 篇文章加载；优先最高匹配 1 篇，跨维度可 2–3 篇交叉参照。
-- 日记检索主路径为 `mcp__diary-rag__search_diary`；无 `user-data/diary/` 目录则整体跳过。两路检索并行：关键词路（核心关键词，10-20 字，top_k=3）与概述路（核心矛盾概述，30-40 字，top_k=3），结果按 `parent_id` 去重后保留 4–5 条。
+- 每个子 skill 每次调用必须从其知识路由表选择至少 2 篇文章加载；优先最高匹配 2 篇，跨维度可 4–6 篇交叉参照。
+- 日记检索主路径为 `mcp__diary-rag__search_diary`；无 `user-data/diary/` 目录则整体跳过。
 
 ## 并行与上下文复用规则
 
@@ -82,8 +82,8 @@ skill 在项目根 `.claude/skills/` 下。知识库在 `user-data/knowledge/` �
 每个 A 类回复按下表组织，同一波内的调用必须同时发出，禁止一个等一个：
 
 - 第 0 波：A/B 判定，同时读 `comprehensive/overview.md` 和 dim1/dim2/dim3 的 overview。
-- 第 1 波：四维/五综合体扫描完成、目标子 skill 确定后，同时发：目标子 skill 读取 + 第一轮日记检索两路。
-- 第 2 波：目标子 skill 就绪后，同时发：命中知识文章读取 + 第二轮日记检索两路。
+- 第 1 波：四维/五综合体扫描并完成路由后，同时发：目标子 skill 读取 + 第一轮日记批量检索（两路）。
+- 第 2 波：目标子 skill 就绪后，同时发：知识文章读取 + 第二轮日记批量检索（两路）。
 - 第 3 波：输出最终回复；trace 和 profile-update 在用户已收到回复后再执行，不阻塞回复。
 
 ### 上下文复用协议
@@ -102,26 +102,8 @@ skill 在项目根 `.claude/skills/` 下。知识库在 `user-data/knowledge/` �
 
 ### 日记语义检索
 
-本项目配置了 `diary-rag` MCP 服务器（`.mcp.json`），提供 `mcp__diary-rag__search_diary(query, top_k)` 工具，可语义搜索 8 年+日记内容。
+- 每轮两路 query 优先一次调用 `search_diary_batch(queries=[...], top_k=20)`；批量工具不可用时，才并行调用两次 `search_diary(query, top_k=20)`。
+- 会话内首次进入日记检索前，先发一次单路预检 `search_diary(query="预检", top_k=1)`（可与档案读取并行，结果忽略）；返回 error 时重试一次，仍 error 则提示用户重启会话（MCP 进程会重建），不要切 Bash 回退。
+- Bash 回退仅限一种场景：MCP 工具完全不在可用工具列表中。
 
-- 日记检索的两路 query 撰写标准与合并去重规则见上文"公共文件与检索约定"；预热检查、warming_up/error 处理与 Bash 回退场景见下文"日记语义检索"。
-- **始终优先使用 MCP 工具** `mcp__diary-rag__search_diary`。每次对话开始时确认该工具在可用工具列表中。若在列表中就通过 MCP 调用——不要自行编写 Python 代码替代。
-- **尽早触发预热检查**：counseling 被调用、确认 MCP 工具在列表后，尽早发一次单路 `search_diary("预检", top_k=1)`——可与档案读取并行，不阻塞。目的是尽早确认预热状态，让后台线程有尽可能多的时间完成预热，减少后续步骤等待。
-- **MCP 返回 warming_up 时**：`eta_s` 已由服务端动态计算（ONNX 快路径通常 1–3s；缺少 ONNX 依赖时回退 PyTorch，冷启动 Defender 扫描下 model 阶段 ≈ 50s）。用 `eta_s` 作为等待秒数重试 MCP，min(eta_s+3, 15)s 防抖。重试后 `elapsed_s` 在涨说明预热推进中，正常 1-2 次重试命中。
-- **MCP 返回 error**：后台预热线程可能已死亡（模型加载异常致其提前退出）。重试一次 MCP——服务端检测超时后会自动重启预热线程（最多 2 次）。重试后仍 error → 预热确实无法完成，提示用户重启 Claude Code 会话（MCP 进程会重建）。不要切 Bash 回退——同一进程不可用。
-- **Bash 回退仅限一种场景**：MCP 工具完全不在可用工具列表中（说明 MCP 进程未能启动）。其他情况（warming_up、error）一律重试 MCP，不切 Bash。
-
-### 日记 MCP 热加载
-
-`.mcp.json` 配置了 `pwsh -NoProfile -File program/diary_rag/run_mcp.ps1`，Claude Code 在会话启动时将其作为子进程拉起（脚本内部启动 `server.py`）。进程启动后，`server.py` 立即在后台线程中加载 ONNX embedding 模型（BAAI/bge-small-zh-v1.5，快路径约 1–3s；缺少 ONNX 依赖时回退 PyTorch，冷启动约 45–50s）和 ChromaDB（约 5s），同时 MCP 握手在 2 秒内完成。
-
-后续 `mcp__diary-rag__search_diary` 工具调用都在**同一个进程**内执行，直接读取后台线程已加载好的全局变量，无需等待。
-
-`search_diary` 检查 `_prewarm_done` 标记，预热未完成则立即返回结构化 warming_up（`stage` + `elapsed_s` + `eta_s`），不阻塞。预热完成后直接走全局变量热路径，无需等待。
-
-- **始终优先使用 MCP 工具** `mcp__diary-rag__search_diary(query, top_k)`
-- **MCP 返回 warming_up 时**：等 `min(eta_s+3, 15)s` 后重试 MCP（不切 Bash）。`elapsed_s` 在涨说明预热推进中，1-2 次重试命中。
-- **MCP 返回 error 时**：重试一次（服务端自愈会重启预热）。仍 error 则提示重启会话。
-- **Bash 回退仅限 MCP 工具完全不在列表中的场景**。
-
-不需要强制预热指令——后台线程已经做了这件事。
+配置与排障细节见 `project/agent-运维手册.md`（人读文档，模型不必加载）。

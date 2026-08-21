@@ -229,12 +229,36 @@ _returned_ids: set = set()
 # ── MCP Server ──
 mcp = FastMCP("diary-rag")
 
+# Full text is returned for only the top few distinct parents; the remaining
+# matched chunks come back as short slices so payloads stay bounded.
+PARENT_FULL_K = 4
+
 
 @mcp.tool()
-def search_diary(query: str, top_k: int = 5) -> list:
-    """Search diary entries by semantic similarity."""
+def search_diary(query: str, top_k: int = 20) -> dict:
+    """Search diary entries by semantic similarity.
+
+    top_k is the number of matched slices returned. Returns
+    {"parents": top 4 full parent blocks, "slices": top_k matched chunks with
+    short text only (no full parent content)}.
+
+    The exact ``预检`` query is a lightweight readiness probe. It reports
+    warm-up state without loading the encoder or querying the index.
+    """
     global _warmup_restarts, _warmup_started_at, _warmup_stage, _warmup_generation, _warmup_error
     global _chroma_client, _chroma_collection
+
+    if query.strip() == "预检":
+        if _warmup_error:
+            return {
+                "status": "error",
+                "stage": _warmup_stage,
+                "message": _warmup_error,
+            }
+        return {
+            "status": "ok" if _prewarm_done.is_set() else "warming",
+            "stage": _warmup_stage,
+        }
 
     t_start = time.perf_counter()
 
@@ -263,7 +287,7 @@ def search_diary(query: str, top_k: int = 5) -> list:
     with _chroma_lock:
         collection = _chroma_collection
 
-    fetch_k = top_k * config.OVERSAMPLE_FACTOR
+    fetch_k = max(top_k, PARENT_FULL_K * config.OVERSAMPLE_FACTOR)
     results = collection.query(
         query_embeddings=[query_vec[0].tolist()],
         n_results=fetch_k,
@@ -271,25 +295,74 @@ def search_diary(query: str, top_k: int = 5) -> list:
     t_chroma = time.perf_counter()
 
     if not results["ids"] or not results["ids"][0]:
-        return []
+        return {"parents": [], "slices": []}
 
+    ids = results["ids"][0]
+    metadatas = results["metadatas"][0]
+    docs = (results.get("documents") or [[]])[0]
+
+    # Parents: dedup chunks by parent_id, keep the top distinct parents.
     seen_parents = set()
     parent_ids = []
-    for meta in results["metadatas"][0]:
+    for meta in metadatas:
         pid = meta["parent_id"]
         if pid not in seen_parents and pid not in _returned_ids:
             seen_parents.add(pid)
             parent_ids.append(pid)
-            if len(parent_ids) >= top_k:
+            if len(parent_ids) >= PARENT_FULL_K:
                 break
 
+    # Slices: all top_k matched chunks themselves — short text only.
+    slice_metas = metadatas[:top_k]
+    sids = ids[:top_k]
+    sdocs = docs[:top_k]
+    s_parent_ids = list(dict.fromkeys(m["parent_id"] for m in slice_metas))
+
     conn = sqlite3.connect(config.DB_PATH)
-    placeholders = ",".join(["?" for _ in parent_ids])
-    rows = conn.execute(
-        "SELECT id, date, title, block_type, char_count, content "
-        f"FROM parents WHERE id IN ({placeholders})",
-        parent_ids,
-    ).fetchall()
+
+    parents = []
+    if parent_ids:
+        placeholders = ",".join(["?" for _ in parent_ids])
+        rows = conn.execute(
+            "SELECT id, date, title, block_type, char_count, content "
+            f"FROM parents WHERE id IN ({placeholders})",
+            parent_ids,
+        ).fetchall()
+        parents = [
+            {
+                "id": row[0],
+                "date": row[1] or "",
+                "title": row[2] or "",
+                "type": row[3],
+                "char_count": row[4],
+                "content": row[5],
+            }
+            for row in rows
+        ]
+
+    date_title: dict = {}
+    if s_parent_ids:
+        placeholders = ",".join(["?" for _ in s_parent_ids])
+        for row in conn.execute(
+            "SELECT id, date, title, block_type FROM parents "
+            f"WHERE id IN ({placeholders})",
+            s_parent_ids,
+        ).fetchall():
+            date_title[row[0]] = (row[1] or "", row[2] or "", row[3])
+
+    slices = [
+        {
+            "id": sids[i],
+            "parent_id": slice_metas[i]["parent_id"],
+            "date": date_title.get(slice_metas[i]["parent_id"], ("", "", ""))[0],
+            "title": date_title.get(slice_metas[i]["parent_id"], ("", "", ""))[1],
+            "type": date_title.get(slice_metas[i]["parent_id"], ("", "", ""))[2],
+            "sub_title": slice_metas[i].get("sub_title") or "",
+            "content": sdocs[i] if i < len(sdocs) else "",
+        }
+        for i in range(len(slice_metas))
+    ]
+
     conn.close()
     t_sql = time.perf_counter()
 
@@ -299,21 +372,26 @@ def search_diary(query: str, top_k: int = 5) -> list:
     print(
         f"[diary-rag] query done in {t_sql - t_start:.3f}s "
         f"(encode {t_encode - t_start:.3f}s, chroma {t_chroma - t_encode:.3f}s, "
-        f"sqlite {t_sql - t_chroma:.3f}s): {query[:40]!r}",
+        f"sqlite {t_sql - t_chroma:.3f}s): {query[:40]!r} "
+        f"-> {len(parents)} parents / {len(slices)} slices",
         file=sys.stderr,
         flush=True,
     )
 
+    return {"parents": parents, "slices": slices}
+
+
+@mcp.tool()
+def search_diary_batch(queries: list[str], top_k: int = 20) -> list[dict]:
+    """Run one retrieval wave containing multiple independent queries.
+
+    This preserves the same per-query retrieval behavior and top_k setting as
+    search_diary(), while avoiding multiple MCP round trips.
+    """
+    clean_queries = [query.strip() for query in queries if query and query.strip()]
     return [
-        {
-            "id": row[0],
-            "date": row[1] or "",
-            "title": row[2] or "",
-            "type": row[3],
-            "char_count": row[4],
-            "content": row[5],
-        }
-        for row in rows
+        {"query": query, "hits": search_diary(query, top_k=top_k)}
+        for query in clean_queries
     ]
 
 

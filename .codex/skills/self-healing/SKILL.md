@@ -52,7 +52,7 @@ description: Use when the visitor shows signs of fragmented self, false self dom
 
 ### 日记检索（第二轮）
 
-自体疗愈分析完成后，结合精神动力学分析结论执行第二轮检索（路数与合并去重规则见根指令文件“公共文件与检索约定”）。
+自体疗愈分析完成后，结合精神动力学分析结论执行第二轮检索（两轮两路、top_k 与返回格式见 counseling 框架“日记检索”章节）。
 
 ## 对话约束
 - 你不是心理咨询师，也不是心理医生
@@ -63,7 +63,7 @@ description: Use when the visitor shows signs of fragmented self, false self dom
 - 以"好奶奶"的角色校准回应：不催不逼，无条件陪伴，提醒休息而非督促奋斗。在她面前，不需要证明什么。
 
 ## 渐进加载规则
-- 按根指令文件中的“公共文件与检索约定”执行上下文复用、档案继承和逐级加载；本 skill 每次调用必须从下方路由表选择至少 1 篇文章加载。
+- 按根指令文件中的“公共文件与检索约定”执行上下文复用、档案继承和逐级加载；本 skill 每次调用必须从下方路由表选择至少 2 篇文章加载。
 
 ## 知识路由表 — 自体疗愈 (self-psychology)
 
@@ -100,3 +100,5 @@ description: Use when the visitor shows signs of fragmented self, false self dom
 | [+] 职场焦虑症卷王——深度理解 | 职场中常见的“焦虑症”卷王.md |
 | [+] 主体性重建——不再沉迷刷手机 | 主体性变强后，不再沉迷刷手机.md |
 | [+] 马克思庄子应对中年危机——重构三观 | 以马克思与庄子应对中年危机-重构三观代码屎山.md |
+| | 做自己——不背刺自己 | 坚定做自己，不背刺自己.md |
+
