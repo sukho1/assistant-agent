@@ -12,9 +12,41 @@ class TestServerSearch:
 
     def test_server_module_imports(self):
         """server module imports without error."""
-        from server import mcp, search_diary, get_model
+        from server import mcp, search_diary, search_diary_batch, get_model
         assert mcp is not None
         assert callable(search_diary)
+        assert callable(search_diary_batch)
+        assert search_diary_batch([], top_k=20) == []
+
+    def test_precheck_is_lightweight(self):
+        """The readiness probe reports state without running semantic search."""
+        import server
+
+        original_done = server._prewarm_done.is_set()
+        original_stage = server._warmup_stage
+        original_error = server._warmup_error
+        original_get_model = server.get_model
+
+        try:
+            server._warmup_stage = "done"
+            server._warmup_error = None
+            server._prewarm_done.set()
+
+            def fail_if_called():
+                raise AssertionError("precheck must not load the embedding model")
+
+            server.get_model = fail_if_called
+            result = server.search_diary("预检", top_k=1)
+
+            assert result == {"status": "ok", "stage": "done"}
+        finally:
+            server.get_model = original_get_model
+            server._warmup_stage = original_stage
+            server._warmup_error = original_error
+            if original_done:
+                server._prewarm_done.set()
+            else:
+                server._prewarm_done.clear()
 
     def test_search_with_data(self):
         """search returns parent blocks for a matching query."""
@@ -84,13 +116,15 @@ class TestServerSearch:
 
             # Test search
             results = search_diary("天气很好", top_k=1)
-            assert len(results) > 0, f"Expected results, got empty list"
-            assert results[0]["title"] == "测试日记"
-            assert "天气很好" in results[0]["content"]
+            assert len(results["parents"]) > 0, f"Expected results, got {results}"
+            assert results["parents"][0]["title"] == "测试日记"
+            assert "天气很好" in results["parents"][0]["content"]
+            assert len(results["slices"]) == 1
 
-            # Test session dedup: second call should return empty (already returned)
+            # Full parents are session-deduped; matching slices remain available.
             results2 = search_diary("天气很好", top_k=1)
-            assert len(results2) == 0, f"Expected empty (session dedup), got {len(results2)}"
+            assert results2["parents"] == []
+            assert len(results2["slices"]) == 1
 
         finally:
             config.CHROMA_DIR = original_chroma

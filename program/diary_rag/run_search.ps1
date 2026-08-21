@@ -1,6 +1,7 @@
 param(
     [string]$Query = "",
-    [int]$TopK = 3,
+    [string[]]$Queries = @(),
+    [int]$TopK = 20,
     [string]$OutputFile = "",
     [int]$TimeoutSec = 300
 )
@@ -27,12 +28,26 @@ $env:PYTHONIOENCODING = "utf-8"
 
 # 看门狗：CLI 卡死（例如与 MCP 服务器并发争用 ChromaDB sqlite 锁）时强制终止，
 # 避免留下永不退出的僵尸进程。
-if ($OutputFile) {
-    $argStr = "`"$cli`" `"$Query`" $TopK --output `"$OutputFile`""
+$queryArgs = @()
+if ($Queries.Count -gt 0) {
+    foreach ($q in $Queries) {
+        $queryArgs += "--query"
+        $queryArgs += ('"' + $q + '"')
+    }
+}
+elseif ($Query) {
+    $queryArgs += ('"' + $Query + '"')
 }
 else {
-    $argStr = "`"$cli`" `"$Query`" $TopK"
+    throw "需要 -Query 或 -Queries 参数"
 }
+
+$argParts = @('"' + $cli + '"') + $queryArgs + @($TopK)
+if ($OutputFile) {
+    $argParts += '--output'
+    $argParts += ('"' + $OutputFile + '"')
+}
+$argStr = $argParts -join ' '
 
 $p = Start-Process -FilePath $python -ArgumentList $argStr -NoNewWindow -PassThru
 if (-not $p.WaitForExit($TimeoutSec * 1000)) {

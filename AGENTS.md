@@ -49,25 +49,8 @@
 
 ### 预加载（会话开始自动执行的两件事）
 
-**1. counseling 自动加载（强制约定）**：agent 自动加载本文件（AGENTS.md）时，必须同时自动加载 `.codex/skills/counseling/SKILL.md` 全文并常驻上下文，A 类分析直接引用该框架。**各 agent 实现机制不同，按各自机制自动加载，不靠"模型自觉读文件"**：
-
-- **ZCode**：用户级 SessionStart hook 客户端强制注入——`~/.zcode/cli/config.json` 的 `hooks` 注册（传 `${ZCODE_PROJECT_DIR}` 参数），调用 `.zcode/hooks/inject_counseling.py` 读取并注入 SKILL.md 全文。每次会话开始（新会话、resume、上下文压缩 compact 后）自动注入，不依赖模型执行。注意：**不要**把 hooks 注册到工作区 `.zcode/config.json`——ZCode 安全策略会忽略项目级 hooks（日志 `config.project_hooks.ignored`），脚本收不到触发；脚本只对存在 `.codex/skills/counseling/SKILL.md` 的项目注入，其他项目静默跳过。
-- **Claude Code**：CLAUDE.md 开头 `@import` 自动导入——`@.claude/skills/counseling/SKILL.md`，加载 CLAUDE.md 时自动把框架导入上下文。
-- **其他 agent（如 Codex CLI，无 SessionStart/import 机制）**：按本约定指令执行补读兜底。
-
-**2. MCP 预热自动执行（强制约定，diary-rag）**：agent 自动加载本文件（AGENTS.md）时，必须同时确保日记检索 MCP（diary-rag）的预热自动执行——A 类流程本会话首次进入日记检索前，自动发一次单路预检。**各 agent 实现机制不同，按各自机制自动加载，不靠"模型自觉"**：
-
-- **ZCode**：工作区 `.zcode/config.json` 的 `mcp.servers` 注册了 diary-rag（`pwsh -NoProfile -File program/diary_rag/run_mcp.ps1`），客户端会话启动时自动连接并拉起 `program/diary_rag/server.py` 进程；server.py 启动即自动后台预热（ONNX embedding 快路径约 1–3s，ChromaDB 约 5s；缺 ONNX 依赖回退 PyTorch，冷启动约 45–50s），无需人工干预。**agent 侧预检（强制）**：A 类流程本会话首次进入日记检索前（与档案读取同一波并行），先发一次单路预检 `mcp__diary-rag__search_diary(query="预检", top_k=1)`——尽早确认预热状态，给后台预热留出时间；返回 error 时重试一次（服务端检测超时后自动重启预热线程，最多 2 次）；重试后仍 error → 预热确实无法完成，提示用户重启客户端会话（MCP 进程会重建），不要切 Bash 回退。
-- **Claude Code**：`.mcp.json` 配置 diary-rag，会话启动时自动拉起 `program/diary_rag/server.py`，后台预热机制与 agent 侧预检动作同上。
-
-兜底：若本会话开头未出现注入标记（ZCode 的"counseling 框架（SessionStart hook 自动注入…）"或 Claude Code 的 @import 导入内容），才补读一次对应 SKILL.md 文件。
-
-**常见故障排查（diary-rag MCP 连接超时，2026-08 实测）**：MCP 工具缺失、客户端日志报 `mcp.server.failed ... connection timed out after 30000ms`，通常是以下两个原因叠加：
-
-- 服务端原因（通用，与客户端无关）：`program/diary_rag/server.py` 已于 2026-08-15 改为握手后后台预热 + 跨进程 ChromaDB 初始化互斥锁，握手约 2-5s，此问题已修复。历史版本在 `mcp.run()` 之前于主线程同步预热（ONNX 快路径约 1–10s；缺 ONNX 回退 PyTorch 冷启动 45–50s），预热未完成前不响应 MCP 握手，冷启动或数据库锁争用下易超过 30s，被客户端默认超时掐断。
-- 客户端配置原因（因环境而异）：各客户端的 MCP 超时默认值与配置字段名不同，字段名写错会被静默忽略、退回默认值。ZCode 实测：默认 30000ms，字段必须是 `timeoutMs`（写 `timeout` 无效）；其他客户端（Claude Code 的 `.mcp.json`、Codex 等）按各自 schema 配置。
-
-修复（以 ZCode 为例）：工作区 `.zcode/config.json` 的 `mcp.servers.diary-rag` 配 `"timeoutMs": 120000`，重启客户端会话生效。排查入口：客户端日志搜 `mcp.server.failed` 与 `mcp.startup.completed`（`toolCount` 为 0 说明服务器启动失败）。
+1. **counseling 框架自动加载常驻**：ZCode 经 SessionStart hook 注入、Claude Code 经 CLAUDE.md `@import`、其他 agent（如 Codex CLI）按本指令补读 `.codex/skills/counseling/SKILL.md` 全文——A 类分析直接引用该框架，不靠"模型自觉读文件"。各机制配置细节与故障排查见 `project/agent-运维手册.md`（人读文档，模型不必加载）。
+2. **diary-rag MCP 自动预热**：会话启动自动拉起 `program/diary_rag/server.py` 并后台预热。A 类流程本会话首次进入日记检索前，先发一次单路预检 `mcp__diary-rag__search_diary(query="预检", top_k=1)`（可与档案读取同波并行，预检结果忽略）；返回 error 时重试一次，仍 error 则提示用户重启客户端会话（MCP 进程会重建），不要切 Bash 回退。
 
 ### 每次回复前强制自检
 
@@ -78,7 +61,7 @@
 - **拿不准** → 一律算 A 类。
 - **日记目录缺失即跳过**：若项目根目录不存在 `user-data/diary/` 文件夹，则跳过所有日记检索/日记分析步骤，其余流程照常执行。
 
-**"执行 counseling 流程"与"读取文件"是两件事**：counseling 流程（输入分析→策略→四维扫描→子skill路由→输出自检）A 类消息每一轮必走，不可因"之前执行过"或"文件已读过"而省略，框架由预加载机制常驻上下文、直接引用；文件（skill、知识文章、档案）已在上下文中则直接引用，不重复读取。
+**"执行 counseling 流程"与"读取文件"是两件事（易错点，特别强调）**：counseling 流程（输入分析→策略→四维扫描→子skill路由→输出自检）A 类消息每一轮必走——**"上下文复用/文件不重读"绝不能误用为"子 skill 流程可跳过"：复用只豁免重复 Read，不免除任何分析步骤**；不可因"之前执行过"或"框架常驻"而省略。文件（skill、知识文章、档案）已在上下文中则直接引用，不重复读取。
 
 skill 在 `.codex/skills/`，知识库在 `user-data/knowledge/`（系列目录见下）。
 
@@ -88,11 +71,8 @@ skill 在 `.codex/skills/`，知识库在 `user-data/knowledge/`（系列目录�
 - 加载文章时使用项目根相对完整路径；找不到时用 `rg --files` / `rg` 搜索文件名。**文件名含中文引号等特殊字符时，用 `program/scripts/read_knowledge.ps1`（按关键词匹配定位）或 `Get-ChildItem -Filter` 定位后再读取，禁止直接拼接含特殊字符的路径**（如 `向外“求”.md` 会被 PowerShell 拆断）。
 - 档案在 `user-data/user_profile/`，不属于知识库；加载策略见下方"工具调用波次"与 SKILL.md 渐进加载规则。
 - **glob 工具的坑**：glob 遵循 `.gitignore`，`user-data/user_profile/`、`user-data/diary/`、`program/diary_rag/data` 等被忽略目录**无法用 glob 匹配**（静默返回空）。列举这些目录时用 `Get-ChildItem -Recurse`（bash）；`grep` 与 `Read` 不受 gitignore 影响。
-- 每个子 skill 每次调用必须从其知识路由表选择至少 1 篇文章加载；优先最高匹配 1 篇，跨维度可 2–3 篇交叉参照。
-- 日记检索主路径为 MCP 工具 `mcp__diary-rag__search_diary(query, top_k)`（返回 `[{id, date, title, type, char_count, content}]`，按语义相似度降序，会话内自动去重）。**Bash 回退仅限 MCP 工具完全不在可用工具列表中**（说明 MCP 进程未启动）时使用：`pwsh -NoProfile -File program/diary_rag/run_search.ps1 -Query "QUERY" -TopK 3`；每轮检索前先确认 MCP 工具是否已恢复，不因上一轮用过回退就跳过检查。
-- 两路检索（同一批次并行发出，禁止逐个等待）：**关键词路**——从分析中提取核心关键词（人名/课题/模式），10-20 字，`top_k=3`；**概述路**——把当前对话的核心矛盾、主要课题概括为一句自然语言，30-40 字，`top_k=3`。
-- 合并去重：两路结果合并（最多 6 条候选），按 `parent_id` 去重，保留 4-5 条；日记原文作为内部上下文注入后续分析，不展示给用户（除非用户要求参考来源）。
-- 第二轮日记检索：与第一轮同为两路并行——诊断结论概述路（把第一轮后形成的诊断结论写成一句概述 query）+ 关键词路（基于诊断结论提取核心关键词）。
+- 每个子 skill 每次调用必须从其知识路由表选择至少 2 篇文章加载；优先最高匹配 2 篇，跨维度可 4–6 篇交叉参照。
+- 日记检索优先用 MCP 批量工具 `search_diary_batch(queries=[两路 query], top_k=20)`，一次完成同轮两路检索；客户端尚未暴露批量工具时，才并行调用两次 `search_diary(query, top_k=20)`。单路返回 `{parents: top 4 父块全文, slices: top_k 个匹配切片}`，父块会话内去重。Bash 回退仅限 MCP 工具完全不在列表中：`pwsh -NoProfile -File program/diary_rag/run_search.ps1 -Queries "QUERY1","QUERY2" -TopK 20`。
 
 ## 并行与上下文复用规则
 
@@ -105,10 +85,10 @@ skill 在 `.codex/skills/`，知识库在 `user-data/knowledge/`（系列目录�
 每个 A 类回复按下表组织，同一波内的调用必须同时发出，禁止一个等一个：
 
 - 第 0 波：A/B 判定。**默认只读 `comprehensive/overview.md`**（已含四维摘要+五综合体+核心链+最近关键变化）；四维扫描定位核心维度且 comprehensive 该维信息不足时，第 1 波补读对应维度 overview。
-- 第 1 波：四维/五综合体扫描完成、目标子 skill 确定后，同时发：目标子 skill 读取 + 预热预检（本会话首次，见预加载小节）+ 第一轮日记检索两路 + （按需）核心维度 overview 补读。
-- 第 2 波：目标子 skill 就绪后，同时发：命中知识文章读取 + 第二轮日记检索两路（诊断结论概述路 + 关键词路）。
+- 第 1 波：四维/五综合体扫描并完成路由后，同时发：目标子 skill 读取 + 首次预检 + 第一轮日记批量检索（两路）+ 按需维度 overview。
+- 第 2 波：目标子 skill 就绪后，同时发：知识文章读取 + 第二轮日记批量检索（两路）。
 - 第 3 波：输出最终回复；trace 和 profile-update 在用户已收到回复后再执行，不阻塞回复。
 
 ### 上下文复用协议
 
-每轮 A 类分析开始前，先做一次"已加载清单"判断，而不是无条件重新读文件：从当前会话历史里确认已完整进入上下文的文件，只有满足下面任一条件才读取——内容当前不在上下文中；上下文发生过自动压缩、无法确认内容是否仍完整；本步骤明确需要该文件的**最新版本**。已在上下文中的直接引用，不再次 Read。子 skill 继承 counseling 已加载的 profile、文章和框架，同一会话内路由不变也不重读 counseling 本体。
+每轮 A 类分析开始前，先做一次"已加载清单"判断，而不是无条件重新读文件：从当前会话历史里确认已完整进入上下文的文件，只有满足下面任一条件才读取——内容当前不在上下文中；上下文发生过自动压缩、无法确认内容是否仍完整；本步骤明确需要该文件的**最新版本**。已在上下文中的直接引用，不再次 Read。子 skill 继承 counseling 已加载的 profile、文章和框架，同一会话内路由不变也不重读 counseling 本体。**本协议只管"读文件"这一动作；任何流程步骤（扫描、路由、检索、自检）不得以"复用"为由跳过。**

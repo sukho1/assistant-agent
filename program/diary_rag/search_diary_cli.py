@@ -31,24 +31,42 @@ def _wrap(text: str, width: int = 1000) -> str:
     return "\n".join(text[i : i + width] for i in range(0, len(text), width))
 
 
-def _write_text(results: list, path: str) -> None:
+def _write_text(hits: dict, path: str, title: str = "", mode: str = "w") -> None:
     lines = []
-    for i, r in enumerate(results, 1):
-        lines.append(f"===== [{i}] {r.get('date', '')} {r.get('title', '')} ({r.get('char_count', 0)}字, {r.get('type', '')})")
+    if title:
+        lines.append(f"########## query: {title} ##########")
+        lines.append("")
+    for i, r in enumerate(hits.get("parents", []), 1):
+        lines.append(f"===== [全文{i}] {r.get('date', '')} {r.get('title', '')} ({r.get('char_count', 0)}字, {r.get('type', '')})")
         lines.append(f"id: {r.get('id', '')}")
         lines.append("")
         lines.append(_wrap(r.get("content", "")))
         lines.append("")
-    with open(path, "w", encoding="utf-8") as f:
+    for i, s in enumerate(hits.get("slices", []), 1):
+        lines.append(f"----- [切片{i}] {s.get('date', '')} {s.get('title', '')} | {s.get('sub_title', '')}")
+        lines.append(f"id: {s.get('id', '')}  parent: {s.get('parent_id', '')}")
+        lines.append(_wrap(s.get("content", "")))
+        lines.append("")
+    with open(path, mode, encoding="utf-8") as f:
         f.write("\n".join(lines))
+        f.write("\n")
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("query", nargs="?", default="")
-    parser.add_argument("top_k", nargs="?", type=int, default=3)
+    parser.add_argument("query", nargs="?", default="", help="单 query（向后兼容）")
+    parser.add_argument("--query", dest="queries", action="append", help="批量 query，可多次指定；一次预热跑完所有 query")
+    parser.add_argument("top_k", nargs="?", type=int, default=20)
     parser.add_argument("--output", default=None, help="write full results to this UTF-8 file")
     args = parser.parse_args()
+
+    if args.queries:
+        queries = args.queries
+    elif args.query:
+        queries = [args.query]
+    else:
+        print(json.dumps([{"status": "error", "message": "缺少 query。"}], ensure_ascii=False))
+        return 1
 
     if not server._prewarm_done.is_set():
         server._prewarm_background()
@@ -69,17 +87,18 @@ def main() -> int:
         )
         return 1
 
-    results = server.search_diary(args.query, top_k=args.top_k)
+    batch = [{"query": q, "hits": server.search_diary(q, top_k=args.top_k)} for q in queries]
 
     if args.output:
-        _write_text(results, args.output)
+        for idx, entry in enumerate(batch):
+            _write_text(entry["hits"], args.output, title=entry["query"], mode="w" if idx == 0 else "a")
         print(json.dumps({
             "status": "ok",
-            "count": len(results),
+            "count": sum(len(e["hits"].get("parents", [])) for e in batch),
             "output_file": args.output,
         }, ensure_ascii=False))
     else:
-        print(json.dumps(results, ensure_ascii=False))
+        print(json.dumps(batch, ensure_ascii=False))
     return 0
 
 
