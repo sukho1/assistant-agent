@@ -51,7 +51,13 @@
 ### 预加载（会话开始自动执行的两件事）
 
 1. **counseling 框架自动加载常驻**：ZCode 经 SessionStart hook 注入、Claude Code 经 CLAUDE.md `@import`、其他 agent（如 Codex CLI）按本指令补读 `.codex/skills/counseling/SKILL.md` 全文——A 类分析直接引用该框架，不靠"模型自觉读文件"。各机制配置细节与故障排查见 `project/agent-运维手册.md`（人读文档，模型不必加载）。
-2. **diary-rag MCP 自动预热**：会话启动自动拉起 `program/diary_rag/server.py` 并后台预热。A 类流程本会话首次进入日记检索前，先发一次单路预检 `mcp__diary-rag__search_diary(query="预检", top_k=1)`（可与档案读取同波并行，预检结果忽略）；返回 error 时重试一次，仍 error 则提示用户重启客户端会话（MCP 进程会重建），不要切 Bash 回退。
+2. **diary-rag MCP 自动预热与会话级状态**：会话启动自动拉起 `program/diary_rag/server.py` 并后台预热。首次进入日记检索前只判断一次当前会话的工具状态，并复用该状态；这不免除后续每轮 A 类流程要求的两轮日记检索。
+
+   - `AVAILABLE`：当前会话已注册至少一个 diary-rag 检索工具。`search_diary_batch` 已注册时，优先用它一次完成两路 query；否则若已注册 `search_diary`，同一波并行两次单路调用。
+   - `ERROR`：工具已注册但预检或检索报错时，仅重试一次；仍报错则明确提示用户通过客户端 Settings → MCP 重连或新开会话，**不要静默切换 Bash 回退**。
+   - `UNAVAILABLE`：当前会话中整个 `mcp__diary-rag__*` 工具组都未注入时，标记本会话不可用并提示重连/新开会话。只有当前回复不能中断时，才使用 CLI 回退；回退时每轮两路 query 必须合并为一次 `run_search.ps1 -Queries ...` 调用，禁止逐路冷启动，也不要与已运行的 MCP 服务并发访问索引。
+
+   预检优先使用 `search_diary(query="预检", top_k=1)`；若仅注册批量工具，则使用 `search_diary_batch(queries=["预检"], top_k=1)`。预检结果忽略，报错按 `ERROR` 规则处理。
 
 ### 每次回复前强制自检
 
@@ -60,6 +66,7 @@
 - **是** → A 类，按 counseling 框架执行完整流程（框架由预加载小节自动注入）。
 - **否**（纯信息交流：IT 技术、日常技巧、事实查询、简单问候等）→ B 类，LLM 直接回复，不套用框架、不调用任何 skill。
 - **拿不准** → 一律算 A 类。
+- **禁偷懒**：增量改稿仍属A类，严禁以复用跳过流程。（18字）
 - **日记目录缺失即跳过**：若项目根目录不存在 `user-data/diary/` 文件夹，则跳过所有日记检索/日记分析步骤，其余流程照常执行。
 
 **"执行 counseling 流程"与"读取文件"是两件事（易错点，特别强调）**：counseling 流程（输入分析→策略→四维扫描→子skill路由→输出自检）A 类消息每一轮必走——**"上下文复用/文件不重读"绝不能误用为"子 skill 流程可跳过"：复用只豁免重复 Read，不免除任何分析步骤**；不可因"之前执行过"或"框架常驻"而省略。文件（skill、知识文章、档案）已在上下文中则直接引用，不重复读取。
@@ -73,7 +80,7 @@ skill 在 `.codex/skills/`，知识库在根目录 `knowledge/`（系列目录�
 - 档案在 `user-data/user_profile/`，不属于知识库；加载策略见下方"工具调用波次"与 SKILL.md 渐进加载规则。
 - **glob 工具的坑**：glob 遵循 `.gitignore`，`user-data/user_profile/`、`user-data/diary/`、`program/diary_rag/data` 等被忽略目录**无法用 glob 匹配**（静默返回空）。列举这些目录时用 `Get-ChildItem -Recurse`（bash）；`grep` 与 `Read` 不受 gitignore 影响。
 - 每个子 skill 每次调用必须从其知识路由表选择至少 2 篇文章加载；优先最高匹配 2 篇，跨维度可 4–6 篇交叉参照。
-- 日记检索优先用 MCP 批量工具 `search_diary_batch(queries=[两路 query], top_k=20)`，一次完成同轮两路检索；客户端尚未暴露批量工具时，才并行调用两次 `search_diary(query, top_k=20)`。单路返回 `{parents: top 4 父块全文, slices: top_k 个匹配切片}`，父块会话内去重。Bash 回退仅限 MCP 工具完全不在列表中：`pwsh -NoProfile -File program/diary_rag/run_search.ps1 -Queries "QUERY1","QUERY2" -TopK 20`。
+- 日记检索优先用 MCP 批量工具 `search_diary_batch(queries=[两路 query], top_k=20)`，一次完成同轮两路检索；客户端尚未暴露批量工具时，才并行调用两次 `search_diary(query, top_k=20)`。单路返回 `{parents: top 4 父块全文, slices: top_k 个匹配切片}`，父块会话内去重。Bash 回退仅限 MCP 工具完全不在列表中；从 Bash 调用 PowerShell 时使用显式数组，避免逗号参数被折叠：`pwsh -NoProfile -Command "& './program/diary_rag/run_search.ps1' -Queries @('QUERY1', 'QUERY2') -TopK 20"`。
 
 ## 并行与上下文复用规则
 
