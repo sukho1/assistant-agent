@@ -55,7 +55,9 @@ description: "Use when the visitor begins a conversation, when comprehensive und
 ### 日记检索（两轮，每轮两路并行）
 
 - 第一轮在四维/五综合体扫描后，第二轮在子 skill 分析后；每轮保持两路 query、每路 `top_k=20`。
-- 优先一次调用批量工具完成同轮两路检索；返回格式、回退和预检见根指令文件。
+- 会话首次进入日记检索时，按根指令文件的 `AVAILABLE` / `ERROR` / `UNAVAILABLE` 状态机完成一次预检并缓存状态；后续轮次复用状态，不重复探测。
+- `AVAILABLE` 时优先一次批量工具调用完成同轮两路检索；只有单路工具可用时才并行两次单路调用。预检优先使用单路工具；若仅有批量工具，则以一条 `预检` query 调用批量工具。`ERROR` 时重试一次后提示客户端重连或新开会话，禁止静默 CLI 回退。仅 `UNAVAILABLE` 且当前回复不能中断时，才用一次 `run_search.ps1 -Queries` 完成同轮两路 query；不得逐路冷启动或与 MCP 服务并发访问索引。
+- 返回格式、预检细节与状态机的唯一详细定义见根指令文件。
 
 ## 两个核心模型（内部扫描工具）
 
