@@ -102,4 +102,5 @@ description: Use when the visitor shows signs of fragmented self, false self dom
 | [+] 马庄应对中年危机、重构三观 | 以马克思与庄子应对中年危机-重构三观代码屎山.md |
 | 坚定做自己、不背刺 | 坚定做自己，不背刺自己.md |
 | 拥抱低状态、实相非敌 | 拥抱低状态.md |
+| 低心力、心力亏电、心力哮喘 | 低心力综合症：拖延-心力亏电-心力哮喘.md |
 
