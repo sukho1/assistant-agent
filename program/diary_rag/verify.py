@@ -10,6 +10,20 @@ import chromadb
 import config
 
 
+def summarize_search_results(results):
+    """Return the parent-block count and metadata for the highest-ranked hit."""
+    if not isinstance(results, dict):
+        return 0, None
+
+    parents = results.get("parents", [])
+    slices = results.get("slices", [])
+    if not parents and not slices:
+        return 0, None
+
+    top = slices[0] if slices else parents[0]
+    return len(parents), {"date": top.get("date", "?"), "title": top.get("title", "?")}
+
+
 def verify():
     errors = []
     warn = []
@@ -121,10 +135,10 @@ def verify():
     try:
         from server import search_diary
         results = search_diary("日记", top_k=2)
-        print(f"  OK    MCP search — returned {len(results or [])} results")
-        if results:
-            r = results[0]
-            print(f"          top: {r.get('date','?')} | {r.get('title','?')}")
+        result_count, top = summarize_search_results(results)
+        print(f"  OK    MCP search — returned {result_count} parent blocks")
+        if top:
+            print(f"          top: {top['date']} | {top['title']}")
     except ImportError:
         print("  SKIP  MCP search — dependencies not installed")
     except Exception as e:

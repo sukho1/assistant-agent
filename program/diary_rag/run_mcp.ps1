@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 
-$root = Split-Path -Parent $PSScriptRoot
+$projectRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $venvPython = Join-Path $PSScriptRoot ".venv\Scripts\python.exe"
 $server = Join-Path $PSScriptRoot "server.py"
 
@@ -19,5 +19,11 @@ $env:HF_HUB_OFFLINE = "1"
 $env:TQDM_DISABLE = "1"
 $env:PYTHONIOENCODING = "utf-8"
 
-& $python $server
-exit $LASTEXITCODE
+Push-Location -LiteralPath $projectRoot
+try {
+    & $python $server
+    exit $LASTEXITCODE
+}
+finally {
+    Pop-Location
+}
