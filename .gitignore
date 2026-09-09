@@ -6,13 +6,11 @@ Thumbs.db
 Desktop.ini
 .DS_Store
 
-# Diary and user profile (local only)
+# Diary and user profile (local only) — user-data 全目录一律不入库
 program/diary_rag/data
 program/diary_rag/diary_articles
 program/diary_rag/.venv/
-user-data/user_profile/
-user-data/trace/
-user-data/diary/
+user-data/
 
 # Project specific
 project/
