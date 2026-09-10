@@ -55,8 +55,7 @@ description: "Use when the visitor begins a conversation, when comprehensive und
 ### 日记检索（两轮，每轮两路并行）
 
 - 第一轮在四维/五综合体扫描后，第二轮在子 skill 分析后；每轮保持两路 query、每路 `top_k=20`。
-- 会话首次进入日记检索时，按根指令文件的 `AVAILABLE` / `ERROR` / `UNAVAILABLE` 状态机完成一次预检并缓存状态；后续轮次复用状态，不重复探测。
-- `AVAILABLE` 时优先一次批量工具调用完成同轮两路检索；只有单路工具可用时才并行两次单路调用。预检优先使用单路工具；若仅有批量工具，则以一条 `预检` query 调用批量工具。`ERROR` 时重试一次后提示客户端重连或新开会话，禁止静默 CLI 回退。仅 `UNAVAILABLE` 且当前回复不能中断时，才用一次 `run_search.ps1 -Queries` 完成同轮两路 query；不得逐路冷启动或与 MCP 服务并发访问索引。
+- 会话首次进入日记检索时，按根指令文件的 `AVAILABLE`/`ERROR`/`UNAVAILABLE` 状态机完成一次预检并缓存状态，后续轮次复用状态，不重复探测：`AVAILABLE` 优先一次批量工具调用完成同轮两路检索；`ERROR` 重试一次后提示客户端重连或新开会话，禁止静默 CLI 回退；仅 `UNAVAILABLE` 且当前回复不能中断时，才用一次 `run_search.ps1 -Queries` 合并同轮两路 query。
 - 返回格式、预检细节与状态机的唯一详细定义见根指令文件。
 
 ## 两个核心模型（内部扫描工具）
@@ -163,13 +162,10 @@ LLM 默认语感（人需成长升级、努力是好事、苦难有意义、接�
 
 ## 渐进加载规则
 - **复用仅限读取**：上下文已有的档案和文章直接引用；四维扫描、子 skill、日记检索和输出自检仍须每轮执行。
-- **启动时加载用户档案**：默认**只读** `user-data/user_profile/comprehensive/overview.md`（已含四维摘要、五综合体、心灵维、核心链、最近关键变化，覆盖 dim1/2/3 要点）。**仅当四维扫描定位核心维度且 comprehensive 中该维信息不足时**，才补读对应维度 overview（`four-dimensions/dim1-elements/overview.md`、`dim2-links/overview.md`、`dim3-karma/overview.md`）。如果文件不存在则跳过对应文件。**子 skill 继承 counseling 已加载的全部档案，不重复读取。**
-- **周记加载**：overview 已覆盖最近关键变化时不额外拉周记。仅当对话涉及近几日时序细节且 overview 中未记录时，按需加载当周周记（`comprehensive/weekly/` + 相关维度 `weekly/`）。文件不存在则跳过。
-- **月报/季报/年报加载**：深度分析场景下，若用户话题跨越数周、涉及较长时序轨迹，按需加载月报（`comprehensive/monthly/`）或季报（`comprehensive/quarterly/`）；涉及年度级回顾或重大人生转折时加载年报（`comprehensive/annual/`）。从近到远逐级加载——周→月→季→年，不必一次性全加。文件不存在则跳过。
-- **每次本skill被调用时，必须根据核心课题从知识路由表中选择至少2篇文章加载。**
-- 加载≠灌给用户——agent内化后自然回应
-- 路由到子模块后 → 调用对应 skill，skill 内有各自的知识路由表
-- 优先加载匹配度最高的2篇。若核心课题涉及多个维度且匹配度相近，可一次加载4-6篇最相关文章交叉参照
+- **启动时加载用户档案**：默认**只读** `user-data/user_profile/comprehensive/overview.md`（已含四维摘要、五综合体、心灵维、核心链、最近关键变化，覆盖 dim1/2/3 要点）。**仅当四维扫描定位核心维度且 comprehensive 中该维信息不足时**，才补读对应维度 overview（`four-dimensions/dim1-elements|dim2-links|dim3-karma/overview.md`）。文件不存在则跳过。**子 skill 继承 counseling 已加载的全部档案，不重复读取。**
+- **周记加载**：overview 已覆盖最近关键变化时不额外拉周记；仅当对话涉及近几日时序细节且 overview 未记录时，按需加载当周周记（`comprehensive/weekly/` + 相关维度 `weekly/`）。
+- **月报/季报/年报**：话题跨越数周、涉及较长时序轨迹时按需加载月报/季报；年度级回顾或重大人生转折加载年报。从近到远逐级加载——周→月→季→年，不必一次全加。文件不存在则跳过。
+- **每次本 skill 被调用，必须按核心课题从知识路由表选至少 2 篇文章加载**；优先最高匹配 2 篇，课题跨维度且匹配度相近时可一次加载 4–6 篇交叉参照。加载≠灌给用户——agent 内化后自然回应；路由到子模块后调用对应 skill，其中有各自的知识路由表。
 
 ## 知识路由表：体系级知识加载
 
