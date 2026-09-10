@@ -6,13 +6,13 @@
 
 ### 下载即用，需要本地agent软件
 - git clone https://github.com/sukho1/assistant-agent.git
-- 没有用过Agent的朋友，可以试用workbuddy/trae等，把这句英文发给自己的Agent，让它执行
+- 没有用过Agent的朋友，可以试用workbuddy/trae等，把下面这段指令发给自己的Agent，让它执行
 - 只用聊天页面（chatgpt、gemini、deepseek、元宝、豆包等）的朋友：打开上面的网址->点击首页的CLAUDE.md文件->复制其中内容->发送给AI作为提示词
 
 ### claude、Codex、智谱zcode等用户进入项目文件夹即可对话
 
 - 支持自动读取claude.md/AGENTS.md的agent，会自动调用各skill
-- Skill的目录 `.claude/skills/`，`.codex/skills/` 由 `program/scripts/sync_codex_skills.py` 从 `.claude/skills/` 生成。
+- Skill目录 `.claude/skills/` 是唯一事实源；`.codex/skills/` 由 `program/scripts/sync_codex_skills.py` 从它生成。
 
 ### 其他用户，请输入以下指令：
 
@@ -25,8 +25,7 @@
 4. 规则同步：根目录是否存在 `CLAUDE.md`，将其内容合并或同步到本项目支持的 Rules 文件中（如 `AGENTS.md` 或 `.trae/rules/project_rules.md`）。
 ```
 
-
---- 
+---
 
 ## 核心模型
 
@@ -39,7 +38,6 @@
 - 人生五要素维（学业、事业、社交、身体、心）、链接维（自己、他人、社会、世界、自然）、业障维、心灵维。
 2. 底层心理模型 —— 理解这个活生生的、复杂的、动态的人
 -  五个综合体：感受综合体、认知综合体、觉察-涵容综合体、能量综合体、力比多综合体。详细见《最底层的心理模型》
-
 
 ### 社科harness
 - 不同的社科流派，有不同的基本假设、基本公理。LLM在目前的阶段是处理不好的，受限于语料，浸透了热门心理学的语感和假设。见《社科agent的生存空间，LLM一定会信仰马克思主义》
@@ -65,9 +63,9 @@
 
 ### trace模式
 
-手动调用/trace skill，在对话后会输出分析过程，保存在~/trace文件夹下，常常也有启发。
+手动调用/trace skill，在对话后异步输出分析过程，保存在 `user-data/trace/` 下，常常也有启发。
 
-### DiaryRAG 日记语义检索 
+### DiaryRAG 日记语义检索
 将你的日记（.docx）放入 `user-data/diary/` 目录后，Agent 可以语义搜索过往日记内容，用于对话中的回溯、分析、自我链接。
 
 使用日记检索需要预处理日记数据。以下指引可发给你的 Agent 执行：
@@ -90,14 +88,13 @@
    如需手动测试，运行：
    python program/diary_rag/server.py
 ```
-注：
 
-### 预处理流水线说明：
+### 预处理流水线说明
 `segment_l1.py` 切分日记为父块（单日日记、单篇文章、单部分内容，100-2000字）→`segment_l2.py` 再切为子块（不大于300字）→`index.py` 用 BAAI/bge-small-zh-v1.5 模型向量化并写入 ChromaDB。首次运行 `index.py` 需联网下载嵌入模型（约 100MB），如遇下载失败可提前 `pip install sentence-transformers && python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('BAAI/bge-small-zh-v1.5')"` 手动缓存模型。
 
 ### 预处理后的数据在 `program/diary_rag/data/` 下（已在 .gitignore 中排除），不提交到仓库。每次日记有新增或修改，重新执行第 3 步即可。
 
-### 如果自己的日记文件非docx格式，如.md文件夹
+### 如果日记文件不是 docx 格式（如 .md 文件）
 让自己的agent根据上述切分逻辑+预处理源代码，自己写程序进行切分chunk、并验证处理完整性，然后做chunk的向量存储索引，MCP的设置、MCP功能测试，E2E测试。
 自己在咨询时可以用/trace调用trace skill，查看user-data/trace记录，是否有检索日记的部分。如果没有，让agent排查可能的原因。
 向量模型默认用的是bge-small-zh-v1.5，有技术能力、电脑性能强的朋友，让Agent更换为BGE-M3等更强的模型。
@@ -121,6 +118,12 @@ assistant-agent/
 ├── AGENTS.md                          # Codex 版项目规则与工作流
 ├── README.md                          # 本文件
 ├── .gitignore
+├── knowledge/                         # 知识库文章
+│   ├── zhuangzi-series/               # 庄子系列
+│   ├── link-series/                   # 链接系列
+│   ├── karma-series/                  # 业障系列
+│   ├── marx-series/                   # 马克思系列
+│   └── self-psychology/               # 自体心理学
 ├── .claude/
 │   ├── settings.local.json
 │   └── skills/                             # Skill 定义 *** 唯一事实源
@@ -139,6 +142,8 @@ assistant-agent/
 │   ├── config.toml                       # Codex 项目配置
 │   ├── rules/default.rules                # Codex 权限规则
 │   └── skills/                            # 由 sync_codex_skills.py 生成
+├── .zcode/
+│   └── hooks/inject_counseling.py        # SessionStart 注入 counseling 框架
 ├── program/                              # 程序与脚本
 │   ├── diary_rag/                        # 日记语义搜索 MCP（已并入 master）
 │   │   ├── server.py                     # MCP 服务入口
@@ -146,14 +151,10 @@ assistant-agent/
 │   │   ├── segment_l2.py                 # 预处理 L2
 │   │   └── data/                         # 预处理数据（gitignore）
 │   └── scripts/                          # 工具脚本
-│       └── sync_codex_skills.py          # 从 Claude skill 生成 Codex skill
+│       ├── sync_codex_skills.py          # 从 Claude skill 生成 Codex skill
+│       └── read_knowledge.ps1            # 按关键词定位特殊文件名知识文章
+├── project/                              # 项目文档与运维手册
 └── user-data/                            # 核心资产
-    ├── knowledge/                        # 知识库文章
-    │   ├── karma-series/                 # 业障系列
-    │   ├── link-series/                  # 链接系列
-    │   ├── marx-series/                  # 马克思系列
-    │   ├── self-psychology/              # 自体心理学
-    │   └── zhuangzi-series/              # 庄子系列
     ├── trace/                            # 分析输出
     ├── diary/                            # 日记 *** 关键支撑
     └── user_profile/                     # 用户画像 *** 核心记忆

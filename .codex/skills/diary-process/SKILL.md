@@ -17,7 +17,7 @@ description: "Import raw diary materials (docx/txt/md, local files or multi-file
 
 ## 流程
 
-分两步：**扫描结构 → 生成处理计划** → **按计划逐项执行**。
+四个步骤：**预处理 → 结构扫描并生成处理计划 → 按计划逐项执行 → 验收**。
 
 ### 第一步：预处理
 

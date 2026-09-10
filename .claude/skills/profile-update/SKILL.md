@@ -29,7 +29,7 @@ description: "End-of-session profile update (user topics + facts, 200-250 chars)
 
 ## 流程
 
-> **前置**：涉及心理分析必须确保 counseling 框架在上下文（首次读取 `.codex/skills/counseling/SKILL.md`，同会话复用；深度跃迁周→月/季/年、触及新维度或交互因果链、超 10 块时重新确认）。
+> **前置**：涉及心理分析必须确保 counseling 框架在上下文（首次读取 `.claude/skills/counseling/SKILL.md`，同会话复用；深度跃迁周→月/季/年、触及新维度或交互因果链、超 10 块时重新确认）。
 
 ### 第一步：判断是否值得更新
 
