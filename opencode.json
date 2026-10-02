@@ -3,7 +3,7 @@
   "mcp": {
     "diary-rag": {
       "type": "local",
-      "command": ["pwsh", "-NoProfile", "-File", "program/diary_rag/run_mcp.ps1"],
+      "command": ["cmd", "/d", "/c", "program\\diary_rag\\run_mcp.cmd"],
       "cwd": ".",
       "enabled": true,
       "timeout": 120000

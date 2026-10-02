@@ -1,4 +1,4 @@
-"""SessionStart hook: inject the counseling framework into the conversation context.
+"""SessionStart hook: inject the novelcraft framework into the conversation context.
 
 ZCode parses hook stdout as strict JSON; `additionalContext` is injected into
 the conversation. On any failure we print nothing (empty output is a pass), so
@@ -16,11 +16,11 @@ try:
         root = Path(sys.argv[1]).resolve()
     else:
         root = Path(__file__).resolve().parents[2]  # .zcode/hooks/x.py -> repo root
-    sk = root / ".codex" / "skills" / "counseling" / "SKILL.md"
+    sk = root / ".codex" / "skills" / "novelcraft" / "SKILL.md"
     text = sk.read_text(encoding="utf-8")
     text = re.sub(r"^---.*?---\n", "", text, flags=re.S).strip()
     payload = (
-        "# counseling 框架（SessionStart hook 自动注入，已常驻上下文，无需再读文件）\n\n"
+        "# novelcraft 框架（SessionStart hook 自动注入，已常驻上下文，无需再读文件）\n\n"
         + text
     )
     out = json.dumps({"additionalContext": payload}, ensure_ascii=False)

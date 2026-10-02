@@ -9,9 +9,11 @@ sandbox_mode = "workspace-write"
 approval_policy = "on-request"
 
 # Codex 不保证读取 Claude 的 .mcp.json，这里显式注册 diary-rag MCP。
+# 入口用 cmd 直启 venv Python。握手必须快：客户端在会话开始约 15 秒后冻结
+# 工具集，来不及连接的服务器会被静默丢弃，且整个会话不再补录。
 [mcp_servers.diary-rag]
-command = "pwsh"
-args = ["-NoProfile", "-File", "program/diary_rag/run_mcp.ps1"]
+command = "cmd"
+args = ["/d", "/c", "program\\diary_rag\\run_mcp.cmd"]
 startup_timeout_sec = 120
 
 [mcp_servers.diary-rag.env]

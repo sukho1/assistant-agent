@@ -4,26 +4,25 @@ Fast path: loads the pre-exported BGE ONNX model with onnxruntime and
 tokenizers, avoiding the 30-55s PyTorch/sentence-transformers startup.
 If the ONNX files or runtime libraries are missing, it falls back to
 SentenceTransformer so the server still starts.
+
+The MCP protocol layer is stdlib-only and answers the handshake immediately;
+numpy/onnxruntime/tokenizers/chromadb are imported only after tools/list has
+been answered, because clients freeze their tool set seconds after session
+start and a server that is still starting up is dropped for that session.
 """
 
 from __future__ import annotations
 
 import contextlib
+import json
 import os
 import sqlite3
 import sys
 import threading
 import time
-from mcp.server.fastmcp import FastMCP
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import config
-
-# mcp 1.x Settings.lifespan 的泛型前向引用在 pydantic-settings 2.15 下会触发
-# IncompleteFieldDefinitionWarning；model_rebuild() 在实例化前解析注解，根治该警告。
-from mcp.server.fastmcp.server import Settings as _McpSettings
-
-_McpSettings.model_rebuild()
 
 # Keep network requests offline — model is pre-cached, no download fallback.
 os.environ.setdefault("HF_HUB_OFFLINE", "1")
@@ -226,15 +225,12 @@ def get_model():
 _returned_ids: set = set()
 
 
-# ── MCP Server ──
-mcp = FastMCP("diary-rag")
-
+# ── Tools ──
 # Full text is returned for only the top few distinct parents; the remaining
 # matched chunks come back as short slices so payloads stay bounded.
 PARENT_FULL_K = 4
 
 
-@mcp.tool()
 def search_diary(query: str, top_k: int = 20) -> dict:
     """Search diary entries by semantic similarity.
 
@@ -261,6 +257,8 @@ def search_diary(query: str, top_k: int = 20) -> dict:
         }
 
     t_start = time.perf_counter()
+
+    _ensure_imports()
 
     model = get_model()
 
@@ -381,7 +379,6 @@ def search_diary(query: str, top_k: int = 20) -> dict:
     return {"parents": parents, "slices": slices}
 
 
-@mcp.tool()
 def search_diary_batch(queries: list[str], top_k: int = 20) -> list[dict]:
     """Run one retrieval wave containing multiple independent queries.
 
@@ -462,27 +459,261 @@ def _prewarm_background(generation: int = 0) -> None:
           file=sys.stderr, flush=True)
 
 
+# ── Runtime loading (deferred until after the handshake) ──
+_import_lock = threading.Lock()
+_imports_ready = False
+_prewarm_started = False
+
+
+def _ensure_imports() -> None:
+    """Import the encoder/vector-store stack once, in the calling thread.
+
+    Never runs at module import and never in a worker thread: importing these
+    from a thread while the serving loop is active was observed to hang (import
+    numpy inside a tool call never returned), so callers stay on the thread that
+    owns the request.
+    """
+    global _imports_ready
+    if _imports_ready:
+        return
+    with _import_lock:
+        if _imports_ready:
+            return
+        import numpy  # noqa: F401
+        import onnxruntime  # noqa: F401
+        import tokenizers  # noqa: F401
+        import chromadb  # noqa: F401
+        if not (os.path.isfile(config.ONNX_MODEL_PATH) and os.path.isfile(config.TOKENIZER_PATH)):
+            import sentence_transformers  # noqa: F401
+        _imports_ready = True
+
+
+def _start_prewarm() -> None:
+    """Load the encoder and ChromaDB in the background; safe to call repeatedly."""
+    global _prewarm_started
+    if _prewarm_started:
+        return
+    _ensure_imports()
+    with _import_lock:
+        if _prewarm_started:
+            return
+        _prewarm_started = True
+    threading.Thread(
+        target=_prewarm_background, kwargs={"generation": 0}, daemon=True
+    ).start()
+
+
+# ── MCP protocol layer (stdlib only) ──
+SERVER_NAME = "diary-rag"
+SERVER_VERSION = "2.0.0"
+LATEST_PROTOCOL_VERSION = "2025-11-25"
+SUPPORTED_PROTOCOL_VERSIONS = (
+    "2024-11-05",
+    "2025-03-26",
+    "2025-06-18",
+    LATEST_PROTOCOL_VERSION,
+)
+
+
+def _tool_definitions() -> list[dict]:
+    """Tool schemas as advertised to clients.
+
+    The input/output schemas mirror the previously generated FastMCP schemas, so
+    clients see the same tools as before; descriptions come from the docstrings.
+    """
+    return [
+        {
+            "name": "search_diary",
+            "description": search_diary.__doc__,
+            "inputSchema": {
+                "properties": {
+                    "query": {"title": "Query", "type": "string"},
+                    "top_k": {"default": 20, "title": "Top K", "type": "integer"},
+                },
+                "required": ["query"],
+                "title": "search_diaryArguments",
+                "type": "object",
+            },
+        },
+        {
+            "name": "search_diary_batch",
+            "description": search_diary_batch.__doc__,
+            "inputSchema": {
+                "properties": {
+                    "queries": {
+                        "items": {"type": "string"},
+                        "title": "Queries",
+                        "type": "array",
+                    },
+                    "top_k": {"default": 20, "title": "Top K", "type": "integer"},
+                },
+                "required": ["queries"],
+                "title": "search_diary_batchArguments",
+                "type": "object",
+            },
+            "outputSchema": {
+                "properties": {
+                    "result": {
+                        "items": {"additionalProperties": True, "type": "object"},
+                        "title": "Result",
+                        "type": "array",
+                    }
+                },
+                "required": ["result"],
+                "title": "search_diary_batchOutput",
+                "type": "object",
+            },
+        },
+    ]
+
+
+def _json_text(payload) -> str:
+    return json.dumps(payload, ensure_ascii=False, indent=2)
+
+
+def _tool_error(message: str) -> dict:
+    return {"content": [{"type": "text", "text": message}], "isError": True}
+
+
+def _top_k_argument(arguments: dict) -> int:
+    raw = arguments.get("top_k", 20)
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        raise ValueError("top_k must be an integer")
+
+
+def _run_search_diary(arguments) -> dict:
+    if not isinstance(arguments, dict):
+        return _tool_error("Error executing tool search_diary: arguments must be an object")
+    query = arguments.get("query")
+    if not isinstance(query, str):
+        return _tool_error("Error executing tool search_diary: query is required and must be a string")
+    try:
+        top_k = _top_k_argument(arguments)
+    except ValueError as exc:
+        return _tool_error(f"Error executing tool search_diary: {exc}")
+    try:
+        result = search_diary(query, top_k=top_k)
+    except Exception as exc:
+        return _tool_error(f"Error executing tool search_diary: {exc}")
+    return {"content": [{"type": "text", "text": _json_text(result)}], "isError": False}
+
+
+def _run_search_diary_batch(arguments) -> dict:
+    if not isinstance(arguments, dict):
+        return _tool_error("Error executing tool search_diary_batch: arguments must be an object")
+    queries = arguments.get("queries")
+    if not isinstance(queries, list) or not all(isinstance(q, str) for q in queries):
+        return _tool_error(
+            "Error executing tool search_diary_batch: queries is required and must be a list of strings"
+        )
+    try:
+        top_k = _top_k_argument(arguments)
+    except ValueError as exc:
+        return _tool_error(f"Error executing tool search_diary_batch: {exc}")
+    try:
+        results = search_diary_batch(queries, top_k=top_k)
+    except Exception as exc:
+        return _tool_error(f"Error executing tool search_diary_batch: {exc}")
+    return {
+        "content": [{"type": "text", "text": _json_text(item)} for item in results],
+        "structuredContent": {"result": results},
+        "isError": False,
+    }
+
+
+def _handle_message(message: dict) -> dict | None:
+    """Build the JSON-RPC response for one request; None for notifications."""
+    request_id = message.get("id")
+    if request_id is None:
+        return None
+    method = message.get("method")
+    params = message.get("params")
+    if not isinstance(params, dict):
+        params = {}
+
+    if method == "initialize":
+        requested = params.get("protocolVersion")
+        version = (
+            requested
+            if requested in SUPPORTED_PROTOCOL_VERSIONS
+            else LATEST_PROTOCOL_VERSION
+        )
+        return {
+            "jsonrpc": "2.0",
+            "id": request_id,
+            "result": {
+                "protocolVersion": version,
+                "capabilities": {"tools": {"listChanged": False}},
+                "serverInfo": {"name": SERVER_NAME, "version": SERVER_VERSION},
+            },
+        }
+    if method == "ping":
+        return {"jsonrpc": "2.0", "id": request_id, "result": {}}
+    if method == "tools/list":
+        return {"jsonrpc": "2.0", "id": request_id, "result": {"tools": _tool_definitions()}}
+    if method == "tools/call":
+        name = params.get("name")
+        if name == "search_diary":
+            result = _run_search_diary(params.get("arguments"))
+        elif name == "search_diary_batch":
+            result = _run_search_diary_batch(params.get("arguments"))
+        else:
+            result = _tool_error(f"Unknown tool: {name}")
+        return {"jsonrpc": "2.0", "id": request_id, "result": result}
+    if method == "resources/list":
+        return {"jsonrpc": "2.0", "id": request_id, "result": {"resources": []}}
+    if method == "prompts/list":
+        return {"jsonrpc": "2.0", "id": request_id, "result": {"prompts": []}}
+    return {
+        "jsonrpc": "2.0",
+        "id": request_id,
+        "error": {"code": -32601, "message": f"Method not found: {method}"},
+    }
+
+
+def _serve_stdio() -> None:
+    """Serve MCP over stdio with nothing but the standard library.
+
+    Reading with readline() (not iteration) avoids the read-ahead buffering that
+    would delay requests on a pipe. The encoder/vector store is loaded after the
+    tool list is on the wire, so the handshake — which is what the client's tool
+    snapshot depends on — never waits for it.
+    """
+    stdin = sys.stdin.buffer
+    stdout = sys.stdout.buffer
+    handshake_answered = False
+    while True:
+        raw = stdin.readline()
+        if not raw:
+            break
+        raw = raw.strip()
+        if not raw:
+            continue
+        try:
+            message = json.loads(raw.decode("utf-8"))
+        except (UnicodeDecodeError, ValueError):
+            continue
+        if not isinstance(message, dict):
+            continue
+
+        # The tools are already registered on the client side; the first request
+        # that follows pays the runtime load (and warms it for later calls).
+        if handshake_answered:
+            _start_prewarm()
+
+        response = _handle_message(message)
+        if response is not None:
+            stdout.write((json.dumps(response, ensure_ascii=False) + "\n").encode("utf-8"))
+            stdout.flush()
+        if message.get("method") == "tools/list":
+            handshake_answered = True
+
+
 if __name__ == "__main__":
     print("[diary-rag] MCP server starting...", file=sys.stderr, flush=True)
     print(f"[diary-rag] ONNX: {config.ONNX_MODEL_PATH}", file=sys.stderr, flush=True)
     print(f"[diary-rag] ChromaDB: {config.CHROMA_DIR}", file=sys.stderr, flush=True)
     print(f"[diary-rag] SQLite: {config.DB_PATH}", file=sys.stderr, flush=True)
-
-    # Import heavy libraries on the main thread before the stdio event loop
-    # starts; importing them from a worker thread (tool call or pre-warm)
-    # while the event loop is running hangs (observed: import numpy inside a
-    # tool call never returns). The pre-warm thread below therefore only uses
-    # already-imported modules. The SentenceTransformer fallback is the only
-    # other heavy import a thread could trigger, so import it up front when
-    # the ONNX files are missing.
-    import numpy  # noqa: F401
-    import onnxruntime  # noqa: F401
-    import tokenizers  # noqa: F401
-    import chromadb  # noqa: F401
-    if not (os.path.isfile(config.ONNX_MODEL_PATH) and os.path.isfile(config.TOKENIZER_PATH)):
-        import sentence_transformers  # noqa: F401
-
-    threading.Thread(
-        target=_prewarm_background, kwargs={"generation": 0}, daemon=True
-    ).start()
-    mcp.run(transport="stdio")
+    _serve_stdio()

@@ -24,3 +24,15 @@ __pycache__/
 *.swp
 *.swo
 *~
+
+# Session dumps & local runtime artifacts
+session-*.plain.jsonl
+_diary_out.json
+*.log
+.zcode/plans/
+dsh-backup-desktop-*/
+# one-off debugging scratch at repo root
+asar_*
+zstd_*
+npm_readme.md
+dsh_plugin_cli.js

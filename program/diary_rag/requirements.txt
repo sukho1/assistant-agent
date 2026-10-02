@@ -1,7 +1,5 @@
 chromadb>=0.5.0
 sentence-transformers>=3.0.0
-fastmcp>=0.2.0
-mcp>=1.0.0
 python-docx>=1.0.0
 transformers>=4.40.0
 onnxruntime>=1.17.0

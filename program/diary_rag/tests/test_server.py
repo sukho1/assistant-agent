@@ -12,11 +12,15 @@ class TestServerSearch:
 
     def test_server_module_imports(self):
         """server module imports without error."""
-        from server import mcp, search_diary, search_diary_batch, get_model
-        assert mcp is not None
+        from server import search_diary, search_diary_batch, get_model, _tool_definitions
         assert callable(search_diary)
         assert callable(search_diary_batch)
+        assert callable(get_model)
         assert search_diary_batch([], top_k=20) == []
+        tools = {t["name"]: t for t in _tool_definitions()}
+        assert set(tools) == {"search_diary", "search_diary_batch"}
+        assert tools["search_diary"]["inputSchema"]["required"] == ["query"]
+        assert tools["search_diary_batch"]["inputSchema"]["required"] == ["queries"]
 
     def test_precheck_is_lightweight(self):
         """The readiness probe reports state without running semantic search."""

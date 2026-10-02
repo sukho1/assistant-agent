@@ -64,7 +64,7 @@ skill 在 `.claude/skills/`，知识库在根目录 `knowledge/`。
 
 - 知识库系列目录：`zhuangzi-series/`、`link-series/`、`karma-series/`、`marx-series/`、`self-psychology/`。
 - 文章用项目根相对完整路径加载；找不到时用 `rg --files` / `rg` 搜文件名。**文件名含中文引号等特殊字符时，用 `program/scripts/read_knowledge.ps1`（按关键词定位）或 `Get-ChildItem -Filter` 定位后再读取，禁止直接拼接含特殊字符的路径**（会被 PowerShell 拆断）。
-- 档案在 `user-data/user_profile/`，不属于知识库；默认只读 `comprehensive/overview.md`，四维定位后该维信息不足再补读对应维度 overview，更深按周→月→季→年逐级补加载，文件不存在则跳过。
+- 档案在 `user-data/user_profile/`，不属于知识库；默认只读总览 `overview.md`（文末附维1/维2/维3 板块），四维定位后该维信息不足再读同一文件文末的对应维度板块，更深按周→月→季→年逐级补加载，文件不存在则跳过。
 - **glob 遵循 `.gitignore`**：`user-data/user_profile/`、`user-data/diary/`、`program/diary_rag/data` 等被忽略目录**无法用 glob 匹配**（静默返回空）。列举用 `Get-ChildItem -Recurse`（bash）；`grep` 与 `Read` 不受 gitignore 影响。
 - 每个子 skill 每次调用必须从其知识路由表选择至少 2 篇文章加载；优先最高匹配 2 篇，跨维度可 4–6 篇交叉参照。
 - 子 skill 继承 counseling 已加载的档案、文章和框架，不重复读取。
@@ -80,10 +80,11 @@ skill 在 `.claude/skills/`，知识库在根目录 `knowledge/`。
 
 每个 A 类回复按下表组织，同一波内的调用必须同时发出，禁止一个等一个：
 
-- 第 0 波：A/B 判定。**默认只读 `comprehensive/overview.md`**（已含四维摘要+五综合体+核心链+最近关键变化）；四维扫描定位核心维度且 comprehensive 该维信息不足时，第 1 波补读对应维度 overview。
-- 第 1 波：四维/五综合体扫描并完成路由后，同时发：目标子 skill 读取 + 首次预检 + 第一轮日记批量检索（两路）+ 按需维度 overview。
+- 第 0 波：A/B 判定。**默认只读 `user-data/user_profile/overview.md`**（已含四维摘要+五综合体+核心链+最近关键变化，文末附维1/维2/维3 维度板块）；四维扫描定位核心维度且总览该维信息不足时，第 1 波在同一文件内补读对应维度板块。
+- 第 1 波：四维/五综合体扫描并完成路由后，同时发：目标子 skill 读取 + 首次预检 + 第一轮日记批量检索（两路）+ 按需维度板块（同一总览文件内）。
 - 第 2 波：目标子 skill 就绪后，同时发：知识文章读取 + 第二轮日记批量检索（两路）。
-- 第 3 波：输出最终回复；trace 和 profile-update 在用户已收到回复后异步执行，不阻塞回复。
+- 第 3 波：输出最终回复。trace 与 profile-update 是用户手动调用的 skill，不随每轮分析自动执行，不排入本波次表。
+- **回复后补写的运行时机制**：由客户端 `Stop` 钩子承接——ZCode 的机制即此（`Stop` 在回复之后触发，可请求继续，最多三次）；未配置该钩子时，回合在最终回复发出即结束，补写只能在本轮内、回复之前完成。
 
 ### 上下文复用协议
 
@@ -92,5 +93,5 @@ skill 在 `.claude/skills/`，知识库在根目录 `knowledge/`。
 ### 日记语义检索
 
 - 每轮两路 query 优先一次调用 `search_diary_batch(queries=[...], top_k=20)`；批量工具不可用时才并行调用两次 `search_diary(query, top_k=20)`。单路返回 `{parents: top 4 父块全文, slices: top_k 个匹配切片}`，父块会话内去重。
-- 会话首次进入日记检索前，只判断一次工具状态并复用：预检 `search_diary(query="预检", top_k=1)`（结果忽略）；报错仅重试一次，仍报错则提示用户 Settings → MCP 重连或新开会话（MCP 进程会重建），不要切 Bash 回退；`mcp__diary-rag__*` 整组不可用且当前回复不能中断时，才用一次 `run_search.ps1 -Queries` 合并两路 query。
+- 会话首次进入日记检索前，只判断一次工具状态并复用：预检 `search_diary(query="预检", top_k=1)`（结果忽略）；报错仅重试一次，仍报错则提示用户 Settings → MCP 重连或新开会话（MCP 进程会重建），不要切 Bash 回退；`mcp__diary-rag__*` 整组不可用且当前回复不能中断时，才用一次 `run_search.ps1 -Queries` 合并两路 query。**预检是判定工具状态的唯一依据**：未实测不得断言工具缺失，也不得凭记忆、凭上一轮结论、或凭客户端 UI 面板的显示来判定——UI 显示与模型侧工具注入是两回事。
 - 配置与排障细节见 `project/agent-运维手册.md`（人读文档，模型不必加载）。
