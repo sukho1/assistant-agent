@@ -7,7 +7,9 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(_
 DIARY_DIR = os.path.join(PROJECT_ROOT, "user-data", "diary")
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 CACHE_DIR = os.path.join(DATA_DIR, "cache")
-CHROMA_DIR = os.path.join(DATA_DIR, "chroma")
+# Pre-exported full-corpus vectors — brute-force numpy search backend.
+EMBEDDINGS_PATH = os.path.join(DATA_DIR, "all_embeddings.npy")
+META_PATH = os.path.join(DATA_DIR, "all_meta.json")
 DB_PATH = os.path.join(DATA_DIR, "diary.db")
 ARTICLES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "diary_articles")
 
@@ -27,9 +29,6 @@ TOKENIZER_PATH = os.path.join(BGE_DIR, "tokenizer.json")
 CHILD_MAX_CHARS = 300
 PARENT_MIN_CHARS_FOR_SPLIT = 500
 LONG_PARENT_CHARS = 2000
-
-# ChromaDB
-COLLECTION_NAME = "diary_rag"
 
 # Retrieval
 DEFAULT_TOP_K = 5

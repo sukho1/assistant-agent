@@ -54,13 +54,12 @@ class TestServerSearch:
 
     def test_search_with_data(self):
         """search returns parent blocks for a matching query."""
-        from server import search_diary, _model, _chroma_client, _chroma_collection, _prewarm_done
+        from server import search_diary, _prewarm_done
         import config
-        import chromadb
 
-        # Setup: temp ChromaDB + SQLite with test data
-        original_chroma = config.CHROMA_DIR
         original_db = config.DB_PATH
+        original_emb = config.EMBEDDINGS_PATH
+        original_meta = config.META_PATH
         tmp_dir = tempfile.mkdtemp()
 
         try:
@@ -83,15 +82,7 @@ class TestServerSearch:
             conn.commit()
             conn.close()
 
-            # Create temp ChromaDB with a child chunk
-            chroma_dir = os.path.join(tmp_dir, "chroma")
-            config.CHROMA_DIR = chroma_dir
-            client = chromadb.PersistentClient(path=chroma_dir)
-            collection = client.create_collection(
-                name=config.COLLECTION_NAME,
-                metadata={"hnsw:space": "cosine"}
-            )
-
+            # Build a temp vector store with one child chunk
             try:
                 from server import _load_onnx_model
                 model = _load_onnx_model()
@@ -104,18 +95,22 @@ class TestServerSearch:
                 normalize_embeddings=True,
                 show_progress_bar=False
             )
-            collection.add(
-                ids=["2026-01-05_diary_0_ch0"],
-                embeddings=embedding.tolist(),
-                documents=[text],
-                metadatas=[{"parent_id": "2026-01-05_diary_0", "sub_title": "", "char_count": len(text)}]
-            )
 
-            # Initialize server globals so search_diary() doesn't block on warming_up
+            import numpy as np
+            emb_path = os.path.join(tmp_dir, "all_embeddings.npy")
+            meta_path = os.path.join(tmp_dir, "all_meta.json")
+            np.save(emb_path, embedding.astype(np.float32))
+            meta = [{"id": "2026-01-05_diary_0_ch0", "parent_id": "2026-01-05_diary_0",
+                     "seq": 0, "sub_title": "", "char_count": len(text), "content": text}]
+            with open(meta_path, "w", encoding="utf-8") as fh:
+                json.dump(meta, fh, ensure_ascii=False)
+            config.EMBEDDINGS_PATH = emb_path
+            config.META_PATH = meta_path
+
+            # Initialize server globals so search_diary() uses the temp store
             import server
             server._model = model
-            server._chroma_client = client
-            server._chroma_collection = collection
+            server._vs = server._VectorStore()
             server._prewarm_done.set()
 
             # Test search
@@ -131,15 +126,18 @@ class TestServerSearch:
             assert len(results2["slices"]) == 1
 
         finally:
-            config.CHROMA_DIR = original_chroma
             config.DB_PATH = original_db
+            config.EMBEDDINGS_PATH = original_emb
+            config.META_PATH = original_meta
+            import server
+            server._vs = None
             import shutil
             shutil.rmtree(tmp_dir, ignore_errors=True)
             # Reset session dedup state
             try:
                 from server import _returned_ids
                 _returned_ids.clear()
-            except:
+            except Exception:
                 pass
 
 

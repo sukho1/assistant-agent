@@ -6,7 +6,6 @@ import json
 import os
 import sys
 
-import chromadb
 import config
 
 
@@ -27,6 +26,7 @@ def summarize_search_results(results):
 def verify():
     errors = []
     warn = []
+    vec_count = None
 
     # ── 0. Source coverage: every .docx in user-data/diary/ -> processed? ──
     diary_root = config.DIARY_DIR
@@ -104,30 +104,28 @@ def verify():
         else:
             print(f"  OK    L1 -> L2 — every parent has child chunks")
 
-    # ── 3. Index: ChromaDB ──
-    if not os.path.exists(config.CHROMA_DIR):
-        errors.append("ChromaDB directory not found — run index.py")
+    # ── 3. Vector store: all_embeddings.npy + all_meta.json ──
+    if not (os.path.exists(config.EMBEDDINGS_PATH) and os.path.exists(config.META_PATH)):
+        errors.append("vector store files not found — run index_two_phase.py embed_all")
     elif not l2_files:
         pass  # already reported
     else:
-        client = chromadb.PersistentClient(path=config.CHROMA_DIR)
-        try:
-            coll = client.get_collection(config.COLLECTION_NAME)
-            idx_count = coll.count()
-            print(f"  OK    Index — {idx_count} vectors")
-
-            # Consistency: L2 <-> Index (sample 500)
-            sample = list(child_ids)[:500] + list(child_ids)[-500:]
-            indexed = coll.get(ids=sample, include=[])
-            missing_ids = set(sample) - set(indexed["ids"])
+        import numpy as np
+        embs = np.load(config.EMBEDDINGS_PATH)
+        meta = json.load(open(config.META_PATH, encoding="utf-8"))
+        if embs.shape[0] != len(meta):
+            errors.append(f"vector/meta mismatch: {embs.shape[0]} rows vs {len(meta)} meta")
+        else:
+            vec_count = len(meta)
+            print(f"  OK    Vector store — {vec_count} vectors")
+            meta_ids = {m["id"] for m in meta}
+            missing_ids = child_ids - meta_ids
             if missing_ids:
-                errors.append(f"L2 -> Index gap: {len(missing_ids)}/{len(sample)} sampled chunks not indexed")
-            elif idx_count == child_count:
-                print(f"  OK    L2 -> Index — all {child_count} chunks indexed")
+                errors.append(f"L2 -> vector store gap: {len(missing_ids)} chunks not exported")
+            elif vec_count == child_count:
+                print(f"  OK    L2 -> vector store — all {child_count} chunks exported")
             else:
-                print(f"  OK    L2 -> Index — {idx_count} vectors for {child_count} chunks (normal if dedup)")
-        except Exception:
-            errors.append("Index collection not found — run index.py")
+                print(f"  OK    L2 -> vector store — {vec_count} vectors for {child_count} chunks (normal if dedup)")
 
     conn.close()
 
@@ -153,7 +151,7 @@ def verify():
     else:
         print(f"\n  ALL GOOD — {len(docx_files)} files, {len(parent_ids)} parents, "
               f"{child_count if l2_files else 0} chunks, "
-              f"{idx_count if 'idx_count' in dir() else '?'} vectors")
+              f"{vec_count if vec_count is not None else '?'} vectors")
         return True
 
 
@@ -162,5 +160,5 @@ if __name__ == '__main__':
     if ok:
         print("[diary_rag] Ready.\n")
     else:
-        print("[diary_rag] Re-run: segment_l1.py && segment_l2.py && index.py\n")
+        print("[diary_rag] Re-run: segment_l1.py && segment_l2.py && index_two_phase.py embed_all\n")
         sys.exit(1)

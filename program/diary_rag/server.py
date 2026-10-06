@@ -5,15 +5,20 @@ tokenizers, avoiding the 30-55s PyTorch/sentence-transformers startup.
 If the ONNX files or runtime libraries are missing, it falls back to
 SentenceTransformer so the server still starts.
 
+Vector search is brute-force numpy over the pre-exported embedding matrix
+(all_embeddings.npy + all_meta.json). ChromaDB was dropped from the query
+path: its 1.5.9 rust compactor dies on this machine shortly after client
+creation, leaving the WAL backlog undrainable and every query failing with
+"Failed to apply logs to the metadata segment".
+
 The MCP protocol layer is stdlib-only and answers the handshake immediately;
-numpy/onnxruntime/tokenizers/chromadb are imported only after tools/list has
+numpy/onnxruntime/tokenizers are imported only after tools/list has
 been answered, because clients freeze their tool set seconds after session
 start and a server that is still starting up is dropped for that session.
 """
 
 from __future__ import annotations
 
-import contextlib
 import json
 import os
 import sqlite3
@@ -87,16 +92,15 @@ class OnnxEmbedder:
         return np.asarray(vectors, dtype=np.float32)
 
 
-# ── Singleton model + ChromaDB ──
+# ── Singleton model + vector store ──
 _model = None
 _model_lock = threading.Lock()
 
-_chroma_client = None
-_chroma_collection = None
-_chroma_lock = threading.Lock()
+_vs = None  # lazily built _VectorStore
+_vs_lock = threading.Lock()
 
 _prewarm_done = threading.Event()
-_warmup_stage = "init"  # "model" | "chromadb" | "done"
+_warmup_stage = "init"  # "model" | "vectors" | "done"
 _warmup_started_at: float | None = None
 
 WARMUP_TIMEOUT_S = 75
@@ -108,50 +112,54 @@ _warmup_model_done_at: float | None = None
 _warmup_generation: int = 0
 
 
-def _open_chroma():
-    """Open the Chroma client and collection (call under _chroma_startup_lock)."""
-    import chromadb
+class _VectorStore:
+    """Brute-force cosine search over the pre-exported embedding matrix.
 
-    client = chromadb.PersistentClient(path=config.CHROMA_DIR)
-    collection = client.get_collection(config.COLLECTION_NAME)
-    return client, collection
-
-
-@contextlib.contextmanager
-def _chroma_startup_lock():
-    """Serialize ChromaDB initialization across server processes.
-
-    Two servers (e.g. ZCode and Codex sessions) opening the same persistent
-    directory at once contend on the sqlite lock during startup, which was
-    observed to stretch the pre-warm from ~8s to 20s+. The lock is
-    best-effort: after a 30s deadline we proceed without it, and a stale lock
-    file (holder crashed) is reclaimed after 60s.
+    Replaces ChromaDB, whose 1.5.9 rust compactor dies shortly after client
+    creation on this machine; queries then fail forever with "Failed to apply
+    logs to the metadata segment" and the WAL backlog can never drain. The
+    exported matrix is complete, and a 33k x 512 matmul is milliseconds.
     """
-    path = os.path.join(config.DATA_DIR, ".chroma-init.lock")
-    deadline = time.time() + 30
-    while True:
-        try:
-            fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-            os.write(fd, str(os.getpid()).encode("ascii"))
-            os.close(fd)
-            break
-        except FileExistsError:
-            try:
-                if time.time() - os.path.getmtime(path) > 60:
-                    os.remove(path)
-                    continue
-            except OSError:
-                pass
-            if time.time() > deadline:
-                break
-            time.sleep(0.2)
-    try:
-        yield
-    finally:
-        try:
-            os.remove(path)
-        except OSError:
-            pass
+
+    def __init__(self):
+        import numpy as np
+
+        embeddings = np.load(config.EMBEDDINGS_PATH)
+        with open(config.META_PATH, encoding="utf-8") as fh:
+            meta = json.load(fh)
+        if embeddings.shape[0] != len(meta):
+            raise RuntimeError(
+                f"embedding/meta mismatch: {embeddings.shape[0]} rows vs "
+                f"{len(meta)} meta entries")
+        norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
+        norms[norms < 1e-12] = 1.0
+        self._np = np
+        self._matrix = np.ascontiguousarray(embeddings / norms, dtype=np.float32)
+        self._meta = meta
+        self.size = len(meta)
+
+    def search(self, query_vec, fetch_k):
+        """Return (ids, metadatas, documents) for the top fetch_k chunks."""
+        np = self._np
+        sims = self._matrix @ np.asarray(query_vec, dtype=np.float32)
+        order = np.argsort(-sims)[:fetch_k]
+        meta_keys = ("id", "parent_id", "seq", "sub_title", "char_count")
+        ids, metadatas, documents = [], [], []
+        for i in order:
+            m = self._meta[int(i)]
+            ids.append(m["id"])
+            metadatas.append({k: m[k] for k in meta_keys if k in m})
+            documents.append(m.get("content", ""))
+        return ids, metadatas, documents
+
+
+def _get_vector_store() -> "_VectorStore":
+    global _vs
+    if _vs is None:
+        with _vs_lock:
+            if _vs is None:
+                _vs = _VectorStore()
+    return _vs
 
 
 def _load_onnx_model():
@@ -242,7 +250,6 @@ def search_diary(query: str, top_k: int = 20) -> dict:
     warm-up state without loading the encoder or querying the index.
     """
     global _warmup_restarts, _warmup_started_at, _warmup_stage, _warmup_generation, _warmup_error
-    global _chroma_client, _chroma_collection
 
     if query.strip() == "预检":
         if _warmup_error:
@@ -269,35 +276,14 @@ def search_diary(query: str, top_k: int = 20) -> dict:
     )
     t_encode = time.perf_counter()
 
-    needs_init = False
-    with _chroma_lock:
-        if _chroma_client is None:
-            needs_init = True
-
-    if needs_init:
-        with _chroma_startup_lock():
-            with _chroma_lock:
-                if _chroma_client is None:
-                    new_client, new_collection = _open_chroma()
-                    _chroma_client = new_client
-                    _chroma_collection = new_collection
-
-    with _chroma_lock:
-        collection = _chroma_collection
+    vector_store = _get_vector_store()
 
     fetch_k = max(top_k, PARENT_FULL_K * config.OVERSAMPLE_FACTOR)
-    results = collection.query(
-        query_embeddings=[query_vec[0].tolist()],
-        n_results=fetch_k,
-    )
-    t_chroma = time.perf_counter()
+    ids, metadatas, docs = vector_store.search(query_vec[0], fetch_k)
+    t_search = time.perf_counter()
 
-    if not results["ids"] or not results["ids"][0]:
+    if not ids:
         return {"parents": [], "slices": []}
-
-    ids = results["ids"][0]
-    metadatas = results["metadatas"][0]
-    docs = (results.get("documents") or [[]])[0]
 
     # Parents: dedup chunks by parent_id, keep the top distinct parents.
     seen_parents = set()
@@ -369,8 +355,8 @@ def search_diary(query: str, top_k: int = 20) -> dict:
 
     print(
         f"[diary-rag] query done in {t_sql - t_start:.3f}s "
-        f"(encode {t_encode - t_start:.3f}s, chroma {t_chroma - t_encode:.3f}s, "
-        f"sqlite {t_sql - t_chroma:.3f}s): {query[:40]!r} "
+        f"(encode {t_encode - t_start:.3f}s, search {t_search - t_encode:.3f}s, "
+        f"sqlite {t_sql - t_search:.3f}s): {query[:40]!r} "
         f"-> {len(parents)} parents / {len(slices)} slices",
         file=sys.stderr,
         flush=True,
@@ -393,15 +379,15 @@ def search_diary_batch(queries: list[str], top_k: int = 20) -> list[dict]:
 
 
 def _prewarm_background(generation: int = 0) -> None:
-    """Eager-load the encoder and ChromaDB, then touch the index with a dummy query."""
-    global _chroma_client, _chroma_collection, _warmup_stage, _warmup_started_at
+    """Eager-load the encoder and vector store, then touch the index with a dummy query."""
+    global _warmup_stage, _warmup_started_at
     global _warmup_error, _warmup_model_done_at
 
     t_start = time.time()
     _warmup_started_at = t_start
     _warmup_stage = "model"
 
-    print("[diary-rag] Background pre-warm started (ONNX + ChromaDB)...",
+    print("[diary-rag] Background pre-warm started (ONNX + vector store)...",
           file=sys.stderr, flush=True)
 
     t0 = time.time()
@@ -414,38 +400,33 @@ def _prewarm_background(generation: int = 0) -> None:
         return
     t_model = time.time()
     _warmup_model_done_at = t_model
-    _warmup_stage = "chromadb"
+    _warmup_stage = "vectors"
     print(f"[diary-rag] Model loaded ({t_model - t0:.1f}s).",
           file=sys.stderr, flush=True)
 
-    tc0 = time.time()
+    tv0 = time.time()
     try:
-        with _chroma_startup_lock():
-            client, collection = _open_chroma()
-        with _chroma_lock:
-            _chroma_client = client
-            _chroma_collection = collection
+        vector_store = _get_vector_store()
+        print(f"[diary-rag] Vector store ready ({time.time() - tv0:.1f}s, "
+              f"{vector_store.size} blocks).", file=sys.stderr, flush=True)
 
-        print(f"[diary-rag] ChromaDB ready ({time.time() - tc0:.1f}s).",
-              file=sys.stderr, flush=True)
-
-        # Force the HNSW index and vector pages into memory before the first
-        # real user query; otherwise the first search still pays disk I/O.
+        # Force the vector matrix pages into memory before the first real
+        # user query; otherwise the first search still pays disk I/O.
         model = get_model()
         warm_vec = model.encode(
             ["预热"],
             normalize_embeddings=True,
             show_progress_bar=False,
         )
-        collection.query(query_embeddings=[warm_vec[0].tolist()], n_results=1)
-        print("[diary-rag] ChromaDB index warmed via dummy query.",
+        vector_store.search(warm_vec[0], 1)
+        print("[diary-rag] Vector index warmed via dummy search.",
               file=sys.stderr, flush=True)
     except Exception as exc:
-        print(f"[diary-rag] ChromaDB pre-load failed, will retry on first query: {exc}",
+        print(f"[diary-rag] Vector store pre-load failed, will retry on first query: {exc}",
               file=sys.stderr, flush=True)
 
     if generation != _warmup_generation:
-        if _model is not None and _chroma_collection is not None:
+        if _model is not None and _vs is not None:
             _warmup_stage = "done"
             _prewarm_done.set()
         else:
@@ -482,14 +463,13 @@ def _ensure_imports() -> None:
         import numpy  # noqa: F401
         import onnxruntime  # noqa: F401
         import tokenizers  # noqa: F401
-        import chromadb  # noqa: F401
         if not (os.path.isfile(config.ONNX_MODEL_PATH) and os.path.isfile(config.TOKENIZER_PATH)):
             import sentence_transformers  # noqa: F401
         _imports_ready = True
 
 
 def _start_prewarm() -> None:
-    """Load the encoder and ChromaDB in the background; safe to call repeatedly."""
+    """Load the encoder and vector store in the background; safe to call repeatedly."""
     global _prewarm_started
     if _prewarm_started:
         return
@@ -714,6 +694,6 @@ def _serve_stdio() -> None:
 if __name__ == "__main__":
     print("[diary-rag] MCP server starting...", file=sys.stderr, flush=True)
     print(f"[diary-rag] ONNX: {config.ONNX_MODEL_PATH}", file=sys.stderr, flush=True)
-    print(f"[diary-rag] ChromaDB: {config.CHROMA_DIR}", file=sys.stderr, flush=True)
+    print(f"[diary-rag] Vectors: {config.EMBEDDINGS_PATH}", file=sys.stderr, flush=True)
     print(f"[diary-rag] SQLite: {config.DB_PATH}", file=sys.stderr, flush=True)
     _serve_stdio()

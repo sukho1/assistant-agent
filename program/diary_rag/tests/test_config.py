@@ -15,7 +15,8 @@ def test_config_has_required_attrs():
     assert config.DIARY_DIR.endswith(os.path.join('user-data', 'diary'))
     assert config.DATA_DIR.endswith('data')
     assert config.DB_PATH.endswith('diary.db')
-    assert config.CHROMA_DIR.endswith('chroma')
+    assert config.EMBEDDINGS_PATH.endswith('all_embeddings.npy')
+    assert config.META_PATH.endswith('all_meta.json')
 
     # Embedding model
     assert config.EMBED_MODEL_NAME == "BAAI/bge-small-zh-v1.5"
@@ -26,9 +27,6 @@ def test_config_has_required_attrs():
     assert config.CHILD_MAX_CHARS == 300
     assert config.PARENT_MIN_CHARS_FOR_SPLIT == 500
     assert config.LONG_PARENT_CHARS == 2000
-
-    # ChromaDB
-    assert config.COLLECTION_NAME == "diary_rag"
 
     # Retrieval
     assert config.DEFAULT_TOP_K == 5
@@ -41,5 +39,4 @@ def test_data_dirs_exist_or_creatable():
 
     assert 'diary_rag' in config.DATA_DIR
     assert config.CACHE_DIR.endswith('cache')
-    assert config.CHROMA_DIR.endswith('chroma')
     assert config.ARTICLES_DIR.endswith('diary_articles')
