@@ -12,6 +12,28 @@ program/diary_rag/diary_articles
 program/diary_rag/.venv/
 user-data/
 
+# 私有子 skill（保密，知识产权保护）——仅顶层 counseling 框架随仓库开源
+.claude/skills/alienation/
+.claude/skills/deep-psychology/
+.claude/skills/diary-process/
+.claude/skills/innate-wholeness/
+.claude/skills/karma-diagnosis/
+.claude/skills/link-past-self/
+.claude/skills/link-rebuild/
+.claude/skills/profile-update/
+.claude/skills/self-healing/
+.claude/skills/trace/
+.codex/skills/alienation/
+.codex/skills/deep-psychology/
+.codex/skills/diary-process/
+.codex/skills/innate-wholeness/
+.codex/skills/karma-diagnosis/
+.codex/skills/link-past-self/
+.codex/skills/link-rebuild/
+.codex/skills/profile-update/
+.codex/skills/self-healing/
+.codex/skills/trace/
+
 # Project specific
 project/
 server/

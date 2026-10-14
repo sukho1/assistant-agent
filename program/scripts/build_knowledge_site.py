@@ -59,6 +59,8 @@ ABOUT_TEXT = ("马克思+庄子+心理学，这个时代的版本答案，我们
               "人本主义、存在主义这两个心灵哲学为支柱，马克思、庄子这两个社科哲学为指导思想。"
               "谈心理、心灵、开悟、活在当下。")
 OVERVIEW_ARTICLE = "我的马克思+庄子+心理学体系概述"
+# 姊妹站：马克思主义主题文集（与 marxism 站 about 栏的马庄链接互为镜像）
+SISTER_SITE = ("https://sukho1.github.io/marxism/", "苏霍壹马克思主义系列文集")
 # 各平台账号；小红书/抖音/快手暂用站内搜索页兜底，拿到主页直链后直接替换 URL
 SOCIALS = [
     ("📕", "小红书", "https://www.xiaohongshu.com/search_result?keyword=" + quote("苏霍壹")),
@@ -773,9 +775,15 @@ def main() -> None:
     about = (f'<section class="intro"><p>{ABOUT_TEXT}{ov_link}</p>'
              f'<p class="ebook-line">📖 <a href="苏霍壹“马克思+庄子+心理学体系”文集.pdf">苏霍壹“马克思+庄子+心理学体系”文集</a>'
              f'<span class="ebook-note">（PDF下载 ·按体系目录编排）</span></p>'
+             f'<p class="agent-line">马克思主义主题文集姊妹站：'
+             f'<a href="{SISTER_SITE[0]}" target="_blank" rel="noopener">{SISTER_SITE[1]}</a></p>'
              f'<p class="agent-line">欢迎点 github 主页试用我开源的马庄心理学 Agent skill：'
              f'<a href="https://github.com/sukho1/assistant-agent" target="_blank" rel="noopener">'
              f'github.com/sukho1/assistant-agent</a></p>'
+             f'<p class="agent-line"><a href="https://justlinknow.com" target="_blank" '
+             f'rel="noopener" style="text-decoration:none">justlinknow.com</a>，基于马庄心理学的 AI 心灵对话，及社交功能</p>'
+             f'<p class="agent-line"><a href="https://aimap.space" target="_blank" '
+             f'rel="noopener" style="text-decoration:none">aimap.space</a>，产业地图（硬科技、AI 产业链、IT 为主）</p>'
              f'<div class="socials">' + "\n".join(soc) + "</div></section>")
 
     home_body = (f'<div class="hero"><h1>{SITE_TITLE}</h1></div>'

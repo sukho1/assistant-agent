@@ -2,6 +2,15 @@
 
 > v2.0.0
 
+## 相关站点
+
+- 小庄 agent：https://justlinknow.com —— 基于马庄心理学的 AI 心灵对话，及社交功能
+- 产业地图：https://aimap.space —— 硬科技、AI 产业链、IT 为主
+- 马庄心理学在线文集：https://sukho1.github.io/ma-zhuang/ —— 马克思+庄子+心理学体系文章，可搜索、留言
+
+> 本仓库只开源顶层 `counseling` 路由框架与知识库文章。以下子 skill 属于保密内容，不再公开，作知识产权保护：
+> `alienation`、`deep-psychology`、`diary-process`、`innate-wholeness`、`karma-diagnosis`、`link-past-self`、`link-rebuild`、`profile-update`、`self-healing`、`trace`。
+> 欢迎试用我开发的小庄 agent 对话：https://justlinknow.com
 
 ## 如何使用
 
@@ -133,17 +142,11 @@ assistant-agent/
 ├── .claude/
 │   ├── settings.local.json
 │   └── skills/                             # Skill 定义 *** 唯一事实源
-│       ├── counseling/                     # 顶层咨询路由、总路由
-│       ├── alienation/                     # 异化专题
-│       ├── deep-psychology/                # 深层心理分析
-│       ├── diary-process/                  # 日记批处理
-│       ├── innate-wholeness/               # 本自具足
-│       ├── karma-diagnosis/                # 业障诊断
-│       ├── link-past-self/                 # 链接过去的自己
-│       ├── link-rebuild/                   # 链接重建
-│       ├── profile-update/                 # 用户画像更新
-│       ├── self-healing/                   # 自体疗愈
-│       └── trace/                          # 分析追溯
+│       └── counseling/                     # 顶层咨询路由、总路由（唯一随仓库开源的 skill）
+│                                           # 其余 10 个子 skill 为保密内容，不入库：
+│                                           # alienation、deep-psychology、diary-process、
+│                                           # innate-wholeness、karma-diagnosis、link-past-self、
+│                                           # link-rebuild、profile-update、self-healing、trace
 ├── .codex/
 │   ├── config.toml                       # Codex 项目配置
 │   ├── rules/default.rules                # Codex 权限规则
