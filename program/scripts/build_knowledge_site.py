@@ -32,6 +32,12 @@ SITE_TITLE = "马庄心理学"
 SITE_SUBTITLE = "马克思 + 庄子 + 心理学 · 人人本自具足"
 REPO_URL = "https://github.com/sukho1/assistant-agent"
 
+# 正式站（2026-10-15）：文章站已迁到主站由 Cloudflare Worker 提供，本仓库这套 GitHub Pages
+# 站点保留下来只为承接既有外链。内容两边同源，所以每页必须加 canonical 指向新站，
+# 否则两个域名同一批文章会被搜索引擎判成重复内容。
+# 新站的文章页是**无扩展名**形态（实测 /x.html 会 307 跳到 /x）。
+NEW_SITE_BASE = "https://chat.justlinknow.com/articles/"
+
 # 评论走 giscus：数据存放在站点仓库的 GitHub Discussions，无后端、零成本。
 # 前提：在 https://github.com/apps/giscus 安装 giscus App 并授权本仓库。
 GISCUS = {
@@ -345,8 +351,11 @@ def giscus_html() -> str:
 
 def render_page(*, title_tag: str, body: str, entries, prefix: str,
                 active_series: str = "", active_file: str = "",
-                with_comments: bool = False) -> str:
+                with_comments: bool = False, canonical: str = "") -> str:
     sidebar = build_sidebar(entries, prefix, active_series, active_file)
+    # 留言板页没有新站对应物（新站的留言板要接本项目账号体系，尚未上线），所以不写 canonical——
+    # 指向一个内容不同的页面，比不写更糟。
+    canonical_tag = f'<link rel="canonical" href="{canonical}">\n' if canonical else ""
     return f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -354,7 +363,7 @@ def render_page(*, title_tag: str, body: str, entries, prefix: str,
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="only light">
 <title>{title_tag}</title>
-<link rel="stylesheet" href="{prefix}style.css?v={ASSET_VER}">
+{canonical_tag}<link rel="stylesheet" href="{prefix}style.css?v={ASSET_VER}">
 </head>
 <body>
 <header class="site-head">
@@ -715,7 +724,8 @@ def main() -> None:
             render_page(title_tag=f'{e["title"]} · {SITE_TITLE}', body=body,
                         entries=entries, prefix='../',
                         active_series=slug, active_file=e["file"],
-                        with_comments=True),
+                        with_comments=True,
+                        canonical=f"{NEW_SITE_BASE}{quote(slug)}/{quote(md_path.stem)}"),
             encoding="utf-8")
 
     # ---- series index pages ----
@@ -737,7 +747,8 @@ def main() -> None:
         (OUT / slug).mkdir(parents=True, exist_ok=True)
         (OUT / slug / "index.html").write_text(
             render_page(title_tag=f"{label} · {SITE_TITLE}", body=body,
-                        entries=entries, prefix='../', active_series=slug),
+                        entries=entries, prefix='../', active_series=slug,
+                        canonical=f"{NEW_SITE_BASE}{quote(slug)}/"),
             encoding="utf-8")
 
     # ---- home ----
@@ -789,7 +800,8 @@ def main() -> None:
     home_body = (f'<div class="hero"><h1>{SITE_TITLE}</h1></div>'
                  + about + "\n".join(sections))
     (OUT / "index.html").write_text(
-        render_page(title_tag=SITE_TITLE, body=home_body, entries=entries, prefix=''),
+        render_page(title_tag=SITE_TITLE, body=home_body, entries=entries, prefix='',
+                    canonical=NEW_SITE_BASE),
         encoding="utf-8")
 
     # ---- guestbook ----
@@ -824,7 +836,8 @@ def main() -> None:
                     + "\n".join(toc) + '</article>')
     (OUT / "catalog.html").write_text(
         render_page(title_tag=f"文章目录 · {SITE_TITLE}", body=catalog_body,
-                    entries=entries, prefix=''),
+                    entries=entries, prefix='',
+                    canonical=NEW_SITE_BASE),
         encoding="utf-8")
 
     # ---- assets ----
