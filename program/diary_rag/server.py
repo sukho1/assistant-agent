@@ -663,7 +663,6 @@ def _serve_stdio() -> None:
     """
     stdin = sys.stdin.buffer
     stdout = sys.stdout.buffer
-    handshake_answered = False
     while True:
         raw = stdin.readline()
         if not raw:
@@ -678,17 +677,16 @@ def _serve_stdio() -> None:
         if not isinstance(message, dict):
             continue
 
-        # The tools are already registered on the client side; the first request
-        # that follows pays the runtime load (and warms it for later calls).
-        if handshake_answered:
-            _start_prewarm()
-
         response = _handle_message(message)
         if response is not None:
             stdout.write((json.dumps(response, ensure_ascii=False) + "\n").encode("utf-8"))
             stdout.flush()
+        # Warm up as soon as the tool list is on the wire, rather than waiting for
+        # the next inbound message: the client's tool snapshot is already safe, and
+        # the model loads while the user is still typing. The synchronous imports
+        # block the serving loop for a few seconds, delaying only later messages.
         if message.get("method") == "tools/list":
-            handshake_answered = True
+            _start_prewarm()
 
 
 if __name__ == "__main__":
