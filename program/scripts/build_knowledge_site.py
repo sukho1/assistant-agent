@@ -792,7 +792,9 @@ def main() -> None:
              f'<a href="https://github.com/sukho1/assistant-agent" target="_blank" rel="noopener">'
              f'github.com/sukho1/assistant-agent</a></p>'
              f'<p class="agent-line"><a href="https://justlinknow.com" target="_blank" '
-             f'rel="noopener" style="text-decoration:none">justlinknow.com</a>，基于马庄心理学的 AI 心灵对话，及社交功能</p>'
+             f'rel="noopener" style="text-decoration:none">justlinknow.com</a>，基于马庄心理学的AI心灵对话，'
+             f'擅长聊生活、工作、情感、亲子、心理、心灵、人生等社科人文类话题；'
+             f'马克思、庄子哲学是赛博朋克原子化时代的版本答案（另有社交功能）。</p>'
              f'<p class="agent-line"><a href="https://aimap.space" target="_blank" '
              f'rel="noopener" style="text-decoration:none">aimap.space</a>，产业地图（硬科技、AI 产业链、IT 为主）</p>'
              f'<div class="socials">' + "\n".join(soc) + "</div></section>")
