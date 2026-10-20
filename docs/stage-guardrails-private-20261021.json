@@ -1,0 +1,97 @@
+{
+  "date": "2026-10-21",
+  "files": 18,
+  "backup": ".data/stage-guardrails-backup-20261021",
+  "manifest": [
+    {
+      "path": ".claude/skills/alienation/SKILL.md",
+      "beforeSha256": "60e2158a21eedad89811751846a3019a066bb543471d4fee116045184e4d1082",
+      "afterSha256": "f88f5012e7719615615d2af7ca75b9b87c618e1566c41070ac733121643baf76"
+    },
+    {
+      "path": ".claude/skills/karma-diagnosis/SKILL.md",
+      "beforeSha256": "aa1f503b5b021cf153ec6fed54392eac6885090188c3faa7e1d93c246aa5a14e",
+      "afterSha256": "7bcd610f298f144fa7f7b8c8d5f82e993265e9f6dd6a327c6758a8a2b99247e2"
+    },
+    {
+      "path": ".claude/skills/innate-wholeness/SKILL.md",
+      "beforeSha256": "19a3fc23d40baa8e907b7cf18d37cc3c00e03a5be27197d84dd29a8cbace2837",
+      "afterSha256": "0141a633f15b311fba99bf0c29ac6acab2cd7fe38c30573119373caeabe12023"
+    },
+    {
+      "path": ".claude/skills/deep-psychology/SKILL.md",
+      "beforeSha256": "3562e11d5718241f36926734ee960e230fdae0eabf4fe1a0bd3f34f5347ab0de",
+      "afterSha256": "4278b62e7573a1e9a86546291803e829b12e2b5b3b2bdfd19acb01e9a3132fa5"
+    },
+    {
+      "path": ".claude/skills/self-healing/SKILL.md",
+      "beforeSha256": "d50ee1f29e09cf6fbcdce9febe54360a9a06dcc1175c98b02480975c372ef522",
+      "afterSha256": "0c4d133f8a79ed4a2359fa84fc36a49842d8f985944ed6615d8bfe44370ea022"
+    },
+    {
+      "path": ".claude/skills/link-rebuild/SKILL.md",
+      "beforeSha256": "1a0d76bc1c4a38c9531c70816859280574df384c432606428f4e417d7a14b590",
+      "afterSha256": "d39c1818a362fca6987ef038ffb7c4628dc2ccb68e86de4cbfe7da62987be8f2"
+    },
+    {
+      "path": ".claude/skills/profile-update/SKILL.md",
+      "beforeSha256": "77d254b175d514135992c4e84da3820deb78624e3fa9f50e8b00751ffb9f6ab4",
+      "afterSha256": "149017cd1acb4294a9550e6a2691fdf5f194cf69f1a475e4ea86ee166eafb22f"
+    },
+    {
+      "path": ".claude/skills/diary-process/SKILL.md",
+      "beforeSha256": "3a697edaff8e4111c3804e613a9f46e6369bc1fc56c3411d2091b218bf23c5b9",
+      "afterSha256": "fdf6dcb4b8799e659dce43d8ba928e69f430aaab1abdf88e18afa0f5f52e3507"
+    },
+    {
+      "path": ".claude/skills/link-past-self/SKILL.md",
+      "beforeSha256": "c3b8818aee9f042cc2109e52d36d05b7a27b06665d4ee284afffdc1d34320c6a",
+      "afterSha256": "3ce2d2309db68ccb5ba7a7411e9ccc1e47d5af253625393027bb57a80234df44"
+    },
+    {
+      "path": ".codex/skills/alienation/SKILL.md",
+      "beforeSha256": "60e2158a21eedad89811751846a3019a066bb543471d4fee116045184e4d1082",
+      "afterSha256": "f88f5012e7719615615d2af7ca75b9b87c618e1566c41070ac733121643baf76"
+    },
+    {
+      "path": ".codex/skills/karma-diagnosis/SKILL.md",
+      "beforeSha256": "aa1f503b5b021cf153ec6fed54392eac6885090188c3faa7e1d93c246aa5a14e",
+      "afterSha256": "7bcd610f298f144fa7f7b8c8d5f82e993265e9f6dd6a327c6758a8a2b99247e2"
+    },
+    {
+      "path": ".codex/skills/innate-wholeness/SKILL.md",
+      "beforeSha256": "19a3fc23d40baa8e907b7cf18d37cc3c00e03a5be27197d84dd29a8cbace2837",
+      "afterSha256": "0141a633f15b311fba99bf0c29ac6acab2cd7fe38c30573119373caeabe12023"
+    },
+    {
+      "path": ".codex/skills/deep-psychology/SKILL.md",
+      "beforeSha256": "3562e11d5718241f36926734ee960e230fdae0eabf4fe1a0bd3f34f5347ab0de",
+      "afterSha256": "4278b62e7573a1e9a86546291803e829b12e2b5b3b2bdfd19acb01e9a3132fa5"
+    },
+    {
+      "path": ".codex/skills/self-healing/SKILL.md",
+      "beforeSha256": "d50ee1f29e09cf6fbcdce9febe54360a9a06dcc1175c98b02480975c372ef522",
+      "afterSha256": "0c4d133f8a79ed4a2359fa84fc36a49842d8f985944ed6615d8bfe44370ea022"
+    },
+    {
+      "path": ".codex/skills/link-rebuild/SKILL.md",
+      "beforeSha256": "1a0d76bc1c4a38c9531c70816859280574df384c432606428f4e417d7a14b590",
+      "afterSha256": "d39c1818a362fca6987ef038ffb7c4628dc2ccb68e86de4cbfe7da62987be8f2"
+    },
+    {
+      "path": ".codex/skills/profile-update/SKILL.md",
+      "beforeSha256": "fb23fd466aad8793fe9695022f5079a27479fff844381ba2238aaab927669038",
+      "afterSha256": "fbe9ed6291f2967dddc1f85ef24adb684daa8a67be889ac1ab1cc772fc0aee6d"
+    },
+    {
+      "path": ".codex/skills/diary-process/SKILL.md",
+      "beforeSha256": "afca2ae74c05fdc89f11202305ba1f423f84feecc0558ddaad1459e92ccf579f",
+      "afterSha256": "cb607fcc4ad3c2fdb48f7e5135840169f733eacacb5a044701eae9b18b28a970"
+    },
+    {
+      "path": ".codex/skills/link-past-self/SKILL.md",
+      "beforeSha256": "c3b8818aee9f042cc2109e52d36d05b7a27b06665d4ee284afffdc1d34320c6a",
+      "afterSha256": "3ce2d2309db68ccb5ba7a7411e9ccc1e47d5af253625393027bb57a80234df44"
+    }
+  ]
+}
