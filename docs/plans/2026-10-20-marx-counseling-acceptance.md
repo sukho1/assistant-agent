@@ -33,8 +33,8 @@ AA 的 counseling 与根人格可由 Git 同步；alienation、karma-diagnosis �
 - 两仓 / 两平台 / 三 skill，共十二份 skill：quick_validate.py 全部通过。默认捆绑 Python 缺 PyYAML，实际使用原 AA 既有 diary-rag venv 的 Python，未安装新依赖。
 - 十二份资产共同框架、根人格、文章存在性、框架不被 6000 字截断：通过。最终哈希收据保存在本地 tools/provider-eval/runs/marx-skill-assets.json。
 - Web 相关集中回归：四文件 135 项通过；新增本轮用户原话隔离后 marx-integration 单独九项通过。覆盖配对、主次保留、去重、旧新成文、B 类、规范路径、模型拒绝交叉参照、选文失败、预算失败、四框架知识覆盖、自检原话边界。
-- shared 全量：十二文件 149 项通过；知识资产 inventory 四项通过，212 篇与原 AA 同步；最终资产重新生成 227 文件。
-- pnpm -r build：最终版本通过，生产产物新鲜度校验通过。pnpm -r typecheck 与 lint 已通过，lint 零 error，既有 warning 保留。新增隔离回归后的最终 typecheck 另有执行记录。
+- shared 全量：十二文件 149 项通过；知识资产 inventory 四项通过，212 篇与原 AA 同步；最终资产重新生成 227 文件。以下早期快照结果仅说明相应阶段；集成后的门禁以末节为准。
+- pnpm -r build：最终版本通过，生产产物新鲜度校验通过。初始快照的 pnpm -r typecheck 与 lint 已通过，lint 零 error。合入最新 master 后的结果另见末节，不沿用早期 lint 通过结论。
 - 全量 API 与浏览器回归的最终结果在下方追加；默认 E2E 在全新隔离库启动时因现有迁移多命令 prepared statement 报错，尚未开始页面测试。迁移文件和执行器未被本次修改。为继续验证运行时，仅在本 worktree 的可抛 .data/pg-e2e 用 PGlite.exec 执行原样 SQL，登记原 migration hash/timestamp 后重跑。此预置不等于默认迁移门禁通过，不接触生产 D1 或真实用户数据。
 
 ## 真实模型抽样与局限
@@ -50,3 +50,27 @@ AA 的 counseling 与根人格可由 Git 同步；alienation、karma-diagnosis �
 ## 发布与交接
 
 无生产部署、迁移、域名或密钥修改。上线需用户明确授权，再由唯一部署 owner 从最新 master 的干净 worktree 执行 tools/deploy.mjs，并核对版本、cron 与冒烟。未通过的全仓门禁不能写成“全部验收通过”；提交、集成与推送实际状态在最终结果中明确记录。
+
+## 最新 master 集成后的最终本地结果
+
+Web 实现提交 6fd6294，基于 origin/master 983d147；只重放本次提交，未重写原主 checkout 的旧监控提交。双方的文章归属、事实纠错、引用译文 / 拼音护栏均保留，新增自检条目顺延为 25–27。AA 实现已在本地 master 集成为 ad31174，原有两项修改的意图已吸收，旧内容仍在 stash（pre-marx-overhaul-user-persona-and-route-20261020）；私有 skill 及备份均留在原 AA，未强制加入 Git。
+
+| 验收 | 最终结果 | 范围与说明 |
+|---|---|---|
+| 十二份 skill 与原 AA 实际安装哈希 | 通过 | 原 AA 主目录运行 verify_marx_skills，双平台、双仓共同框架 / 三篇文章 / 根人格 |
+| 相关回归 | 175 / 175 通过 | 七文件，含 knowledge / scan / selfcheck / 路由 / 新旧成文 / 资料边界 / 语言护栏 |
+| 全包构建 | 通过 | 最终算法资产重新生成，生产产物校验通过 |
+| 全仓类型检查 | 通过 | 并发执行曾出现 Node 进程 3221225477 崩溃；降低 workspace concurrency 后顺序执行通过，非类型报错 |
+| 默认上下文 E2E | 5 / 5 通过 | 多轮流式、危机中断、消息删除、会话管理、A/B 阶段保真；本地 mock、隔离库 |
+| v2 上下文 E2E | 未通过 | 首轮报 history_context_unavailable，标题未回填；同样切到干净 origin/master 983d147 实测复现，非仅凭文件未改推断 |
+| 全仓 lint | 未通过 | 最新 master 的 ChatPage.tsx:890 条件调用 useDailyAiDisclosure；干净 origin/master 实测同样失败，本次未改该文件 |
+| Worker inventory | 知识资产等三项通过，一项失败 | 新增 referral_invites / referral_claims / crisis_referrals 未登记冻结表清单；干净 origin/master 同样失败 |
+| 最新迁移日志复核 | 6 / 6 通过 | 最新 master 的 migration-journal.test.ts 已通过，旧快照的迁移错误不能沿用为当前结论 |
+
+早期全量 API 诊断为 21 文件失败 / 133 通过 / 2 跳过，19 用例失败 / 1787 通过 / 157 跳过。该长跑期间加入了自检校准与新回归，部分变换缓存仍是旧 prompt，新增一项断言因此失败；它不是最终冻结快照的全量门禁结果，不能据此把所有失败归为旧基线。最终相关七文件 175 项已重新执行并全部通过。最新全量 API 门禁仍未取得通过结论，不以定向回归替代全量。
+
+早期全量浏览器诊断在完成 15 项、失败 2 项后，为切换最新 master 对照而停止，亦不计作最终全量验收。最终仅默认路径相关五项通过；v2 已做独立基线对照。全新库默认启动迁移的早期失败和隔离 exec 预置过程保留在日志，未修改既有迁移 SQL。
+
+本地证据位于 Web worktree 的 ignored tools/provider-eval/runs：build-marx-integrated.txt、typecheck-marx-integrated-sequential.txt、lint-marx-integrated.txt、lint-origin-baseline.txt、inventory-marx-integrated.txt、inventory-origin-baseline.txt、e2e-marx-integrated.txt、e2e-marx-integrated-v2.txt、e2e-origin-v2-baseline.txt、marx-aa-integrated-assets.json。Vitest 输出位于 apps/api/.vitest-marx-integrated.txt 和 .vitest-marx-baseline-journal.txt；旧完整输出 .vitest-marx-full.txt 保留诊断历史。它们均不入 Git，不公开模型初稿或私有技能正文。
+
+剩余事项明确保留：最终六场景外发评估等待授权；AA 原生客户端调用未验证（当前只有真实 skill 的提示词评估与本地安装验证，现有客户端需重载才能读取新版）；Web 基线门禁需另行修复后再做完整冻结快照回归。Web 分支保持可审阅，不合并到 master，不部署。生产行为尚未改变。
