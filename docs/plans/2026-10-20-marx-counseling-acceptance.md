@@ -210,3 +210,6 @@ AA 四份私有子 skill 经原文件哈希核验后已安装回主目录；旧�
 3. 如再推进结构化，先只让检查器记录原句、来源位置、命题类型、缺口，再考虑跨分析/策略保留身份；代码只能验证引用存在，不能证明心理因果。不以删光社会理解或劳动肯定获取表面通过。
 
 本地忽略证据：marx-checker-before.json、marx-checker-after.json、marx-checker-corrected.json、marx-checker-six.json、marx-checker-manual-review.json、marx-checker-final-assets.json，均在 Web tools/provider-eval/runs。详细执行见2026-10-20-marx-checker-calibration计划。Web继续功能分支，不合master、不部署；AA按已约定的本地资产与分支收尾规则同步，收尾状态另记。
+
+
+收尾：AA实现9b0c518已快进合入并推送master；四份私有技能先比对原哈希、备份到project/backups/marx-checker-20261020后安装到原项目，六份目标技能与验收版本逐字归一核对一致。Web保留codex/marx-counseling-integration分支提交推送，不合master、不部署。8788后台HTTP200。本轮语义未通过与原生客户端/历史基线门禁等未关闭项保持开放。
