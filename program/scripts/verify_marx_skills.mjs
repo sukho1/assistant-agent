@@ -17,6 +17,9 @@ for(const repo of roots){
   assert.ok(/^---\nname: ["']?[\w-]+["']?\ndescription: /.test(text),'Invalid frontmatter: '+name);
   if(name!=='counseling') assert.ok(text.includes('## 核心框架'),'Missing core: '+name);
   assert.ok(text.includes('认知不足')&&text.includes('自我疗愈不足')&&text.includes('严重错误'));
+  assert.ok(text.includes('马克思主义和庄子哲学，是分析的指导思想。'));
+  assert.ok(text.includes('你本来就无条件的存在，应得无条件的尊重，何况你的劳动对世界有正面贡献。'));
+  assert.ok(text.includes('你可以没有改变愿望，仍然值得被好好对待。'));
   if(name==='counseling'){
    assert.ok(/定位到此维必须调 `karma-diagnosis` 和 `alienation`/.test(text),'Missing paired routing');
    assert.ok(text.includes('四维度是系统链接的，不是割裂的'));
