@@ -76,3 +76,10 @@ Web此前六题交付5/6、心理人工2/5；本轮6/6和2/5必须分开，不�
 ## 证据位置
 
 本地隔离worktree的tools/provider-eval/runs/guardrails-content-v3/保存baseline.json、content-audit.json、integrated-audit.json、mirrors-final.json、probes.json、web-six.json、aa-six.json、human-review.json、aa-install.json及测试日志；合成全文只作本地验收材料，不提交。主项目.data/guardrails-content-v3/evidence/保留同份证据以供worktree清理后追溯。AA私有文件原件备份在.data/guardrails-content-v3-backup-20261021/，含逐文件前后哈希，不含真实用户资料。
+
+
+## 补记：重新授权后的两组检查与验收优先级
+
+上文“未执行”的两组检查是当时的授权状态。用户后来明确补充授权，共12次检查现已完成，12/12判定符合预期；部分理由仍有过度解释。具体版本、正反例、人工复核与用量见[补充验收](guardrails-supplement-20261021.md)。这是检查器定点结果，不代表线上99.9%成功率。
+
+用户进一步明确：单次对话成功率目标≥99.9%；没有重大、严重错误时允许轻微偏移，生成成功比严苛自检重要。Web PRD第15节已记录。此前严格逐项符合率保留作历史问题索引，不未经严重度复核就充当这一产品成功率；本次没有修改生产交付流程或部署。
